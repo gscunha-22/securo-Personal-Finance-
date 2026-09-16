@@ -537,6 +537,7 @@ async def renegotiation_amortize(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
+    """Price simulation. POST because the extras belong in a body; writes nothing."""
     try:
         return await simulate_amortize(session, ctx.workspace.id, data)
     except LookupError as exc:
@@ -548,6 +549,7 @@ async def renegotiation_pmt_hint(
     data: PmtHintBody,
     ctx: WorkspaceContext = Depends(current_workspace),
 ):
+    """Theoretical PMT. POST because CET and term belong in a body; writes nothing."""
     _ = ctx
     return pmt_hint(data)
 

@@ -82,6 +82,8 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     # not in a query string. Same read permission as GET /api/export/backup.
     ("POST", "/api/export/backup"): "exports the workspace it can already read; writes nothing",
     ("POST", "/api/ai/suggestions"): "validates an AI suggestion schema; writes nothing",
+    ("POST", "/api/renegotiation/amortize"): "Price simulation against stored debts; writes nothing",
+    ("POST", "/api/renegotiation/pmt-hint"): "theoretical installment from CET and term; writes nothing",
     # The agents surface, mounted only when AGENTS_ENABLED is on (the test
     # suite turns it on so these are always covered). An LLM connection is
     # the requester's own credential — scoped by `user.id`, never by
