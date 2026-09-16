@@ -16,8 +16,11 @@ const PERSONAL_MODULES: ModuleId[] = [
   'transactions',
   'accounts',
   'import',
+  'documents',
+  'review',
   'reports',
   'assets',
+  'debts',
   'budgets',
   'goals',
   'recurring',
@@ -25,6 +28,9 @@ const PERSONAL_MODULES: ModuleId[] = [
   'payees',
   'split_groups',
   'rules',
+  'sources',
+  'processing',
+  'audit',
 ]
 
 const linkKeys = (items: NavItem[]) =>
@@ -56,8 +62,11 @@ describe('visibleNavItems', () => {
       'transactions',
       'accounts',
       'import',
+      'documents',
+      'review',
       'reports',
       'assets',
+      'debts',
       'budgets',
       'goals',
       'recurring',
@@ -65,9 +74,11 @@ describe('visibleNavItems', () => {
       'payees',
       'splitGroups',
       'rules',
+      'sources',
+      'processing',
+      'audit',
     ])
-    // All three section headers survive.
-    expect(personal.filter((i) => i.type === 'separator')).toHaveLength(3)
+    expect(personal.filter((i) => i.type === 'separator')).toHaveLength(4)
   })
 
   it('adds invoices for a workspace that has it', () => {

@@ -39,6 +39,10 @@ from app.models.transaction import Transaction
 from app.models.transaction_attachment import TransactionAttachment
 from app.models.transaction_split import TransactionSplit
 from app.models.workspace import Workspace, WorkspaceMember
+from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
+from app.models.vault import ImportCandidate, VaultDocument
+from app.models.processing_job import ProcessingJob
+from app.models.audit import AuditEvent
 
 
 _AUTOSTAMP_MODELS = (
@@ -68,6 +72,15 @@ _AUTOSTAMP_MODELS = (
     Transaction,
     TransactionAttachment,
     TransactionSplit,
+    Debt,
+    DebtInstallment,
+    DebtPayment,
+    DebtCashPlan,
+    DebtOffer,
+    ImportCandidate,
+    VaultDocument,
+    ProcessingJob,
+    AuditEvent,
 )
 
 

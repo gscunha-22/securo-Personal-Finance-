@@ -38,7 +38,7 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { CheckCircle2, CalendarIcon, Clock, Paperclip, Target, ArrowUpDown, HelpCircle, EyeClosed, AlertCircle } from 'lucide-react'
+import { CheckCircle2, CalendarIcon, Clock, Paperclip, Target, ArrowUpDown, HelpCircle, EyeClosed, AlertCircle, ListChecks } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ICON_MAP } from '@/lib/category-icons'
 import { PageHeader } from '@/components/page-header'
@@ -816,6 +816,12 @@ export default function DashboardPage() {
                         <span>{mask(formatCurrency(creditCardBalance, primaryCurrency, locale))}</span>
                       </div>
                     )}
+                    {summary?.debts_outstanding_primary != null && (
+                      <div className="flex justify-between gap-3">
+                        <span>{t('dashboard.debtsOutstanding')}</span>
+                        <span>{mask(formatCurrency(summary.debts_outstanding_primary, primaryCurrency, locale))}</span>
+                      </div>
+                    )}
                     {hasProjectedBalance && (
                       <div className="flex justify-between gap-3">
                         <span>{t('dashboard.projectedBalance')}</span>
@@ -862,7 +868,22 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Uncategorized banner */}
+      {!summaryLoading && (summary?.pending_review_count ?? 0) > 0 && (
+        <Link
+          to="/review"
+          className="w-full flex items-center justify-between gap-3 bg-card border border-border rounded-lg px-4 py-2.5 mb-5 hover:bg-muted/40 transition-colors"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <ListChecks size={16} className="shrink-0 text-primary" />
+            <span className="text-sm text-foreground truncate">
+              {t('dashboard.pendingReviewCta', { count: summary?.pending_review_count ?? 0 })}
+            </span>
+          </div>
+          <span className="shrink-0 text-sm font-semibold text-primary hover:underline">
+            {t('dashboard.reviewNow')} &rarr;
+          </span>
+        </Link>
+      )}
       {!summaryLoading && (
         uncategorizedCount > 0 ? (
           <button

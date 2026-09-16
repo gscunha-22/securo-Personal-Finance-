@@ -21,7 +21,7 @@ class RecurringTransactionCreate(BaseModel):
     account_id: uuid.UUID
     category_id: Optional[uuid.UUID] = None
     skip_first: bool = False  # Set true when first occurrence already created as a transaction
-    auto_generate: bool = True  # Materialize occurrences; when false, wait for the real charge
+    auto_generate: bool = True  # Materialize occurrences; UI starts unchecked so new bills stay suggestions until confirmed
 
 
 class RecurringTransactionUpdate(BaseModel):

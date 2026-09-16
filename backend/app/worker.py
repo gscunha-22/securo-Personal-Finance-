@@ -49,9 +49,11 @@ celery_app.conf.beat_schedule = {
     },
     "restamp-fallback-fx-daily": {
         "task": "app.tasks.fx_rate_tasks.restamp_fallback_fx",
-        # Twice daily, after FX rate sync — heals transactions that were
-        # stamped with the 1:1 fallback (or left NULL) once real rates land.
         "schedule": 60 * 60 * 12,
+    },
+    "recover-abandoned-jobs": {
+        "task": "app.tasks.intelligence_tasks.recover_abandoned_jobs",
+        "schedule": 15 * 60,
     },
 }
 
@@ -60,6 +62,7 @@ celery_app.conf.include = [
     "app.tasks.recurring_tasks",
     "app.tasks.asset_tasks",
     "app.tasks.fx_rate_tasks",
+    "app.tasks.intelligence_tasks",
     # Optional agents module — registering the import is harmless when
     # AGENTS_ENABLED=false (the task just won't be dispatched).
     "app.agents.tasks.ingest",

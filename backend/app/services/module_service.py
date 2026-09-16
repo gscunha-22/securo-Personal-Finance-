@@ -59,6 +59,12 @@ class ModuleId(str, Enum):
     SPLIT_GROUPS = "split_groups"
     RULES = "rules"
     INVOICES = "invoices"
+    DOCUMENTS = "documents"
+    REVIEW = "review"
+    DEBTS = "debts"
+    SOURCES = "sources"
+    PROCESSING = "processing"
+    AUDIT = "audit"
 
 
 @dataclass(frozen=True)
@@ -87,6 +93,12 @@ CATALOG: Mapping[ModuleId, ModuleSpec] = {
         ModuleSpec(ModuleId.SPLIT_GROUPS, default_enabled=True),
         ModuleSpec(ModuleId.RULES, default_enabled=True),
         ModuleSpec(ModuleId.INVOICES, default_enabled=False),
+        ModuleSpec(ModuleId.DOCUMENTS, default_enabled=True),
+        ModuleSpec(ModuleId.REVIEW, default_enabled=True),
+        ModuleSpec(ModuleId.DEBTS, default_enabled=True),
+        ModuleSpec(ModuleId.SOURCES, default_enabled=True),
+        ModuleSpec(ModuleId.PROCESSING, default_enabled=True),
+        ModuleSpec(ModuleId.AUDIT, default_enabled=True),
     )
 }
 

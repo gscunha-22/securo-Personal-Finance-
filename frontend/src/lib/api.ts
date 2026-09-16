@@ -62,6 +62,13 @@ import type {
   Goal,
   GoalSummary,
   DashboardSummary,
+  VaultDocument,
+  ImportCandidate,
+  ProcessingJob,
+  AuditEvent,
+  SourceConnection,
+  Debt,
+  RenegotiationPlan,
   SpendingByCategory,
   MonthlyTrend,
   BalanceHistory,
@@ -88,7 +95,17 @@ import type {
 
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true,
 })
+
+function readCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const prefix = `${name}=`
+  return document.cookie
+    .split('; ')
+    .find((part) => part.startsWith(prefix))
+    ?.slice(prefix.length)
+}
 
 // Storage key for the currently-selected workspace ID. Lives in
 // localStorage so reloads + new tabs stay on the same workspace until
@@ -104,6 +121,10 @@ api.interceptors.request.use((config) => {
   const workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY)
   if (workspaceId) {
     config.headers['X-Workspace-Id'] = workspaceId
+  }
+  const csrf = readCookie('csrf_token')
+  if (csrf) {
+    config.headers['X-CSRF-Token'] = decodeURIComponent(csrf)
   }
   return config
 })
@@ -290,6 +311,13 @@ export const auth = {
     // fall back instead of leaving the page stuck on its loading state.
     const { data } = await api.get('/auth/oidc/config', { timeout: 5000 })
     return data
+  },
+  logout: async (): Promise<void> => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      // Clearing local state still signs the browser out.
+    }
   },
 }
 
@@ -1997,4 +2025,93 @@ export const publicInvoices = {
     return data
   },
   pdfUrl: (token: string): string => `/api/public/invoices/${token}/pdf`,
+}
+
+export const intelligence = {
+  listDocuments: async (): Promise<VaultDocument[]> => {
+    const { data } = await api.get('/documents')
+    return data
+  },
+  uploadDocument: async (file: File, accountId?: string): Promise<VaultDocument> => {
+    const form = new FormData()
+    form.append('file', file)
+    if (accountId) form.append('account_id', accountId)
+    const { data } = await api.post('/documents', form)
+    return data
+  },
+  listCandidates: async (status?: string): Promise<ImportCandidate[]> => {
+    const { data } = await api.get('/review/candidates', { params: status ? { status } : undefined })
+    return data
+  },
+  decide: async (
+    candidateIds: string[],
+    decision: 'approve' | 'reject' | 'defer',
+    accountId?: string,
+  ): Promise<{ posted: number; rejected: number; deferred: number }> => {
+    const { data } = await api.post('/review/decisions', {
+      candidate_ids: candidateIds,
+      decision,
+      account_id: accountId || null,
+    })
+    return data
+  },
+  listJobs: async (status?: string): Promise<ProcessingJob[]> => {
+    const { data } = await api.get('/jobs', { params: status ? { status } : undefined })
+    return data
+  },
+  retryJob: async (jobId: string): Promise<unknown> => {
+    const { data } = await api.post(`/jobs/${jobId}/retry`)
+    return data
+  },
+  listAudit: async (): Promise<AuditEvent[]> => {
+    const { data } = await api.get('/audit')
+    return data
+  },
+  listSources: async (): Promise<SourceConnection[]> => {
+    const { data } = await api.get('/sources')
+    return data
+  },
+  listDebts: async (): Promise<Debt[]> => {
+    const { data } = await api.get('/debts')
+    return data
+  },
+  createDebt: async (payload: Record<string, unknown>): Promise<Debt> => {
+    const { data } = await api.post('/debts', payload)
+    return data
+  },
+  deleteDebt: async (id: string): Promise<void> => {
+    await api.delete(`/debts/${id}`)
+  },
+  getPlan: async (): Promise<RenegotiationPlan> => {
+    const { data } = await api.get('/renegotiation')
+    return data
+  },
+  updateCash: async (payload: Record<string, unknown>): Promise<RenegotiationPlan> => {
+    const { data } = await api.put('/renegotiation/cash', payload)
+    return data
+  },
+  createOffer: async (payload: Record<string, unknown>): Promise<RenegotiationPlan> => {
+    const { data } = await api.post('/renegotiation/offers', payload)
+    return data
+  },
+  deleteOffer: async (id: string): Promise<RenegotiationPlan> => {
+    const { data } = await api.delete(`/renegotiation/offers/${id}`)
+    return data
+  },
+  updateSteps: async (steps: Record<string, boolean>): Promise<RenegotiationPlan> => {
+    const { data } = await api.put('/renegotiation/steps', { steps })
+    return data
+  },
+  amortize: async (payload: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const { data } = await api.post('/renegotiation/amortize', payload)
+    return data
+  },
+  pmtHint: async (payload: Record<string, unknown>): Promise<{ pmt: string; cet_annual: string | null }> => {
+    const { data } = await api.post('/renegotiation/pmt-hint', payload)
+    return data
+  },
+  seedExample: async (replace = false, currency = 'BRL'): Promise<RenegotiationPlan> => {
+    const { data } = await api.post('/renegotiation/example', { replace, currency })
+    return data
+  },
 }

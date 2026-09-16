@@ -397,6 +397,8 @@ def test_build_account_data_maps_bank_savings_subtype_to_savings():
         ("BANK", "CHECKING_ACCOUNT", "checking"),
         ("BANK", "SAVINGS_ACCOUNT", "savings"),
         ("CREDIT", "CREDIT_CARD", "credit_card"),
+        ("LOAN", None, "loan"),
+        ("BANK", "LOAN_ACCOUNT", "loan"),
         # `subtype` is documented as always present, but a payload that omits
         # it must still fall back to the `type` mapping.
         ("BANK", None, "checking"),

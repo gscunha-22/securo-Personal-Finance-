@@ -17,6 +17,7 @@ from app.schemas.admin import (
     AppSettingUpdate,
 )
 from app.services import admin_service
+from app.core.privacy import registration_allowed
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -212,7 +213,7 @@ async def check_registration_enabled(
     request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
-    enabled = await admin_service.is_registration_enabled(session)
+    enabled = await registration_allowed(session)
     if not enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

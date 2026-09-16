@@ -765,9 +765,12 @@ class PluggyProvider(BankProvider):
         # subtype so a savings account is not displayed as checking.
         if (pluggy_subtype or "").upper() in {"SAVINGS", "SAVINGS_ACCOUNT"}:
             return "savings"
+        if (pluggy_subtype or "").upper() in {"LOAN", "LOAN_ACCOUNT"}:
+            return "loan"
         mapping = {
             "BANK": "checking",
             "CREDIT": "credit_card",
             "SAVINGS": "savings",
+            "LOAN": "loan",
         }
         return mapping.get(pluggy_type.upper(), "checking")

@@ -235,7 +235,7 @@ describe('i18n locale files', () => {
   })
 
   it('contains new recurrence labels in every locale', () => {
-    const required = ['recurring.biweekly', 'recurring.semiannual']
+    const required = ['recurring.biweekly', 'recurring.semiannual', 'accounts.typeLoan', 'intelligence.needsOcr']
 
     for (const locale of LOCALES) {
       const keys = new Set(flattenKeys(JSON.parse(readRaw(locale))))

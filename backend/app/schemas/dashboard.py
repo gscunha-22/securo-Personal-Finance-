@@ -29,6 +29,11 @@ class DashboardSummary(BaseModel):
     # waiting to be paid back). Computed from group balance lines so
     # it already accounts for any partial settlements.
     pending_shares_net: float = 0.0
+    pending_review_count: int = 0
+    documents_processing_count: int = 0
+    debts_outstanding_primary: float | None = None
+    last_document_sync_at: str | None = None
+    integrations: list[dict] = Field(default_factory=list)
 
 
 class SpendingByCategory(BaseModel):

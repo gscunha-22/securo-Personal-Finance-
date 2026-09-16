@@ -701,6 +701,205 @@ export interface DashboardSummary {
   // Negative = net liability, positive = net receivable. Already
   // accounts for partial settlements.
   pending_shares_net: number
+  pending_review_count?: number
+  documents_processing_count?: number
+  debts_outstanding_primary?: number | null
+  last_document_sync_at?: string | null
+  integrations?: DashboardIntegration[]
+}
+
+export interface DashboardIntegration {
+  provider: string
+  status: string
+  last_sync_at: string | null
+  last_sync_result?: string | null
+}
+
+export interface VaultDocument {
+  id: string
+  document_type: string
+  status: string
+  origin: string
+  filename: string
+  mime: string
+    sha256: string
+    byte_size: number
+    interpretation_version?: number
+    created_at: string
+}
+
+export interface ImportCandidate {
+  id: string
+  document_id: string
+  selected: boolean
+  status: string
+  description: string
+  amount: string | number
+  currency: string
+  competence_date: string
+  payment_date: string | null
+  txn_type: string
+  payee: string | null
+  locator: string | null
+  confidence: string | number
+  duplicate_of_transaction_id: string | null
+  suggested_category: string | null
+  suggestion_rationale: string | null
+  suggestion_confidence: string | number | null
+  posted_transaction_id: string | null
+}
+
+export interface ProcessingJob {
+  id: string
+  job_type: string
+  status: string
+  attempts: number
+  error: string | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+}
+
+export interface AuditEvent {
+  id: string
+  action: string
+  entity_type: string
+  entity_id: string | null
+  summary: string
+  created_at: string
+}
+
+export interface SourceConnection {
+  id: string
+  provider: string
+  display_name: string
+  status: string
+  granted_scopes: string | null
+  last_sync_at: string | null
+  last_sync_result: string | null
+  last_error: string | null
+}
+
+export interface Debt {
+  id: string
+  name: string
+  creditor: string
+  currency: string
+  principal: string | number
+  outstanding_balance: string | number
+  interest_rate: string | number | null
+  indexer: string | null
+  origination_date: string | null
+  maturity_date: string | null
+  collateral: string | null
+  estimated_cost: string | number | null
+  payoff_strategy: string | null
+  strategy_assumptions: string | null
+  notes: string | null
+  status: string
+  product?: string
+  delinquency_status?: string
+  days_past_due?: number
+  penalty_amount?: string | number
+  installment_amount?: string | number | null
+  remaining_term_months?: number | null
+  cet_annual_informed?: string | number | null
+  due_date?: string | null
+  guarantee?: string
+}
+
+export interface RenegotiationPlan {
+  disclaimer: string
+  totals: { payoff: string; count: number; priority_one: number }
+  debts: Array<{
+    id: string
+    creditor: string
+    product: string
+    payoff: string
+    rate: string | null
+    cet_annual: string | null
+    cet_is_estimate: boolean
+    installment: string
+    term: number | null
+    delinquency_status: string
+    dpd: number
+    penalty: string
+    guarantee: string
+    notes: string
+    currency: string
+    priority: number
+  }>
+  offers: Array<{
+    id: string
+    debt_id: string
+    creditor: string | null
+    path: string
+    name: string
+    payoff: string
+    cet: string | null
+    cet_annual: string | null
+    pmt: string
+    n: number | null
+    down: string
+    waiver: string
+    grace: string
+    new_guarantee: boolean
+    ops: string
+    total: string
+    extra: string
+    fits_conservative: boolean
+    material: boolean
+  }>
+  cash: {
+    income: string
+    variable_income: string
+    essential: string
+    discretionary: string
+    reserve: string
+    shock: string
+  }
+  scenarios: {
+    service: string
+    reneg: string | null
+    cap_cons: string
+    cons_free: string
+    rec_free: string
+    base_free: string
+    base_free_r: string | null
+    cons_free_r: string | null
+    commit: string
+    commit_r: string | null
+    ceiling30: string
+    filter30_ok: boolean
+  }
+  cashflow: Array<{
+    month: number
+    income: string
+    fixed: string
+    service: string
+    reneg: string | null
+    balance: string
+    balance_reneg: string | null
+  }>
+  paths: Array<{ id: string; applicable: boolean; arrears_count?: number }>
+  gates: {
+    items: Array<{ id: string; ok: boolean }>
+    filter30: { ok: boolean; commit: string; auxiliary: boolean }
+    ready: boolean
+  }
+  steps: Record<string, boolean>
+  alerts: string[]
+  bank_script_facts: Array<{
+    creditor: string
+    product: string
+    payoff: string
+    rate: string | null
+    cet_annual: string | null
+    installment: string
+    dpd: number
+    penalty: string
+  }>
+  avalanche: { creditor?: string; rate?: string | null } | null
 }
 
 export interface SpendingByCategory {

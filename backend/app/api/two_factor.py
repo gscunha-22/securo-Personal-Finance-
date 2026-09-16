@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import current_active_user, get_jwt_strategy
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.database import get_async_session
+from app.core.privacy import token_json_response
 from app.core.rate_limit import login_rate_limit
 from app.core.redis import get_redis
 from app.models.user import User
@@ -144,4 +145,4 @@ async def verify_2fa(
     # Generate JWT
     strategy = get_jwt_strategy()
     token = await strategy.write_token(user)
-    return {"access_token": token, "token_type": "bearer"}
+    return token_json_response(token)

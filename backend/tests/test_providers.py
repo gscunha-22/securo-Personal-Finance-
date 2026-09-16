@@ -107,7 +107,11 @@ def test_get_storage_provider_unsupported():
     try:
         with patch("app.core.config.get_settings") as mock_settings:
             mock_settings.return_value.storage_provider = "s3"
-            with pytest.raises(NotImplementedError, match="s3"):
+            provider = get_storage_provider()
+            assert provider.name == "s3"
+            providers_mod._storage_provider = None
+            mock_settings.return_value.storage_provider = "gcs"
+            with pytest.raises(NotImplementedError, match="gcs"):
                 get_storage_provider()
     finally:
         providers_mod._storage_provider = original

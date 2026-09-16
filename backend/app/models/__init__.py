@@ -32,6 +32,23 @@ from app.models.reconciliation import (
     ReconciliationRule,
     ReconciliationSuggestion,
 )
+from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
+from app.models.vault import (
+    ColumnMappingTemplate,
+    DocumentConflict,
+    DocumentExtraction,
+    DocumentVersion,
+    EmailMessage,
+    ExtractedField,
+    HumanDecision,
+    ImportCandidate,
+    SourceConnection,
+    StoredObject,
+    SyncCursor,
+    VaultDocument,
+)
+from app.models.processing_job import JobAttempt, ProcessingJob
+from app.models.audit import AppNotification, AuditEvent
 
 # Side-effect import: register the before_insert listener that auto-stamps
 # workspace_id from user_id on financial entities. Imported last so all
@@ -81,4 +98,25 @@ __all__ = [
     "ReconciliationSuggestion",
     "collection_accounts",
     "collection_asset_groups",
+    "Debt",
+    "DebtInstallment",
+    "DebtPayment",
+    "DebtCashPlan",
+    "DebtOffer",
+    "StoredObject",
+    "SourceConnection",
+    "SyncCursor",
+    "VaultDocument",
+    "EmailMessage",
+    "DocumentExtraction",
+    "DocumentVersion",
+    "HumanDecision",
+    "DocumentConflict",
+    "ExtractedField",
+    "ImportCandidate",
+    "ColumnMappingTemplate",
+    "ProcessingJob",
+    "JobAttempt",
+    "AuditEvent",
+    "AppNotification",
 ]

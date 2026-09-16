@@ -89,6 +89,20 @@ class Settings(BaseSettings):
 
     # Registration
     registration_enabled: bool = True
+    # When true, the first created user is the only owner. Further public
+    # registration is refused even if registration_enabled is on.
+    private_instance: bool = False
+
+    # Document vault
+    storage_max_document_size_mb: int = 20
+
+    # Read-only Google / Microsoft connectors (owner must supply OAuth clients)
+    google_client_id: str = ""
+    google_client_secret: SecretStr = SecretStr("")
+    microsoft_client_id: str = ""
+    microsoft_client_secret: SecretStr = SecretStr("")
+    ai_provider_base_url: str = ""
+    ai_provider_api_key: SecretStr = SecretStr("")
 
     # OIDC login (works with Authentik, Pocket ID, and other standard OIDC providers)
     oidc_enabled: bool = False

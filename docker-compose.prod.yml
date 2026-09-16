@@ -39,6 +39,14 @@ x-backend-env: &backend-env
   OPENEXCHANGERATES_APP_ID: ${OPENEXCHANGERATES_APP_ID:-}
   FX_SYNC_MODE: ${FX_SYNC_MODE:-on_demand}
   TESOURO_DIRETO_ENABLED: ${TESOURO_DIRETO_ENABLED:-true}
+  PRIVATE_INSTANCE: ${PRIVATE_INSTANCE:-false}
+  STORAGE_MAX_DOCUMENT_SIZE_MB: ${STORAGE_MAX_DOCUMENT_SIZE_MB:-20}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+  MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+  AI_PROVIDER_BASE_URL: ${AI_PROVIDER_BASE_URL:-}
+  AI_PROVIDER_API_KEY: ${AI_PROVIDER_API_KEY:-}
   # The backend is reached through the bundled nginx frontend below, so rate
   # limiting needs to trust exactly one reverse-proxy hop to key by real
   # client IP instead of nginx's own container address.

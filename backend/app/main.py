@@ -44,6 +44,8 @@ from app.api.two_factor import router as two_factor_router
 from app.api.user_lookup import router as user_lookup_router
 from app.api.workspaces import router as workspaces_router
 from app.api.admin import router as admin_router, check_registration_enabled
+from app.api.intelligence import router as intelligence_router
+from app.core.privacy import SecurityHeadersMiddleware
 from app.core.auth import fastapi_users
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.config import get_settings
@@ -111,6 +113,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
@@ -197,6 +200,7 @@ app.include_router(settings_router)
 app.include_router(workspaces_router)
 app.include_router(admin_router)
 app.include_router(info_router)
+app.include_router(intelligence_router)
 
 
 # Optional agents/MCP/LLM module — fully gated by AGENTS_ENABLED so users
@@ -230,3 +234,34 @@ if os.getenv("AGENTS_ENABLED", "false").strip().lower() in ("1", "true", "yes", 
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/api/ready")
+async def readiness_check():
+    from sqlalchemy import text
+
+    from app.core.database import async_session_maker
+    from app.core.redis import get_redis
+
+    checks = {"database": False, "redis": False, "storage": False}
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        checks["database"] = True
+    except Exception:
+        checks["database"] = False
+    try:
+        r = await get_redis()
+        await r.ping()
+        checks["redis"] = True
+    except Exception:
+        checks["redis"] = False
+    try:
+        from app.providers import get_storage_provider
+
+        get_storage_provider()
+        checks["storage"] = True
+    except Exception:
+        checks["storage"] = False
+    ready = all(checks.values())
+    return {"status": "ready" if ready else "degraded", "checks": checks}
