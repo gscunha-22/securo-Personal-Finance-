@@ -136,6 +136,25 @@ o alvo: o código fala S3, não a API da Vercel.
 
 Não usar Neon Auth. Users, TOTP, passkeys, OIDC e CSRF já existem.
 
+Projeto Neon **deste operador** (schema vazio até o compute persistente
+correr `alembic upgrade head`; Auth **não** ligado; senhas só no console
+Neon / secrets do compute, nunca no git):
+
+| Campo | Valor |
+|---|---|
+| Nome | `securo-personal-finance` |
+| Project id | `rough-dream-93584716` |
+| Org | `org-bold-band-58607849` |
+| Região | `aws-us-east-2` |
+| Postgres | 16 (`vector` 0.8.0) |
+| Database | `securo` |
+| Branch | `main` (`br-autumn-brook-b5clfx9c`) |
+| Host direto | `ep-green-lab-b52gwozb.c-7.us-east-2.aws.neon.tech` |
+| Host pooled | `ep-green-lab-b52gwozb-pooler.c-7.us-east-2.aws.neon.tech` |
+
+Os projetos `connector-command-center` e `kimi-memory` **não** são desta
+aplicação; não reutilizar as strings deles.
+
 Não usar Neon Functions como substituto do FastAPI neste ciclo: o app é
 um processo ASGI com worker lado a lado, não um handler isolado. Functions
 ficam como opção futura só para um sidecar de longa duração (SSE/MCP),

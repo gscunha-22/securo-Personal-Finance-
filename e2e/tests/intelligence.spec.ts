@@ -7,7 +7,11 @@ const USER = {
   is_superuser: true,
   is_verified: true,
   is_2fa_enabled: false,
-  preferences: { language: 'en', currency_display: 'USD' },
+  preferences: {
+    language: 'en',
+    currency_display: 'USD',
+    onboarding_completed: true,
+  },
 }
 
 const WORKSPACE = {
