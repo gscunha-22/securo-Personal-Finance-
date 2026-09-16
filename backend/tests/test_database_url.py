@@ -120,6 +120,11 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "Vite" in readme
     dockerfile = (REPO_ROOT / "backend" / "Dockerfile").read_text(encoding="utf-8")
     assert "tesseract-ocr-por" in dockerfile
+    intelligence_tasks = (REPO_ROOT / "backend" / "app" / "tasks" / "intelligence_tasks.py").read_text(
+        encoding="utf-8"
+    )
+    assert "make_worker_session_maker" in intelligence_tasks
+    assert "async_session_maker" not in intelligence_tasks
 
 
 def test_vercel_spa_rewrites_api_to_persistent_origin():
