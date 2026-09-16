@@ -1,0 +1,112 @@
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.privacy import sanitize_error
+from app.models.processing_job import JobAttempt, ProcessingJob
+
+TERMINAL = {"completed", "partially_completed", "failed", "cancelled"}
+ACTIVE = {"queued", "running", "waiting_review"}
+
+
+async def enqueue(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    job_type: str,
+    idempotency_key: str,
+    payload: dict,
+    source_connection_id: uuid.UUID | None = None,
+    priority: int = 100,
+    correlation_id: str | None = None,
+) -> ProcessingJob:
+    existing = await session.scalar(
+        select(ProcessingJob).where(
+            ProcessingJob.workspace_id == workspace_id,
+            ProcessingJob.idempotency_key == idempotency_key,
+        )
+    )
+    if existing:
+        return existing
+    job = ProcessingJob(
+        workspace_id=workspace_id,
+        source_connection_id=source_connection_id,
+        job_type=job_type,
+        status="queued",
+        priority=priority,
+        payload=payload,
+        idempotency_key=idempotency_key,
+        correlation_id=correlation_id,
+    )
+    session.add(job)
+    await session.flush()
+    return job
+
+
+async def mark_running(session: AsyncSession, job: ProcessingJob) -> ProcessingJob:
+    now = datetime.now(timezone.utc)
+    job.status = "running"
+    job.attempts += 1
+    job.started_at = now
+    job.locked_at = now
+    job.lock_expires_at = now + timedelta(seconds=job.timeout_seconds)
+    job.updated_at = now
+    session.add(
+        JobAttempt(job_id=job.id, attempt_number=job.attempts, status="running", started_at=now)
+    )
+    return job
+
+
+async def finish(
+    session: AsyncSession,
+    job: ProcessingJob,
+    status: str,
+    error: str | None = None,
+) -> ProcessingJob:
+    now = datetime.now(timezone.utc)
+    job.status = status
+    job.finished_at = now
+    job.locked_at = None
+    job.lock_expires_at = None
+    job.error = sanitize_error(error) if error else None
+    job.updated_at = now
+    if status == "failed" and job.attempts < job.max_attempts:
+        job.status = "queued"
+        job.next_retry_at = now + timedelta(seconds=min(300, 15 * (2 ** (job.attempts - 1))))
+        job.finished_at = None
+    return job
+
+
+async def list_jobs(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    status: Optional[str] = None,
+) -> list[ProcessingJob]:
+    query = select(ProcessingJob).where(ProcessingJob.workspace_id == workspace_id)
+    if status:
+        query = query.where(ProcessingJob.status == status)
+    query = query.order_by(ProcessingJob.created_at.desc()).limit(200)
+    return list((await session.execute(query)).scalars().all())
+
+
+async def recover_abandoned(session: AsyncSession) -> int:
+    now = datetime.now(timezone.utc)
+    result = await session.execute(
+        select(ProcessingJob).where(
+            ProcessingJob.status == "running",
+            ProcessingJob.lock_expires_at.is_not(None),
+            ProcessingJob.lock_expires_at < now,
+        )
+    )
+    count = 0
+    for job in result.scalars():
+        job.status = "queued"
+        job.locked_at = None
+        job.lock_expires_at = None
+        job.error = "Recovered abandoned job after lock timeout"
+        job.next_retry_at = now
+        count += 1
+    return count

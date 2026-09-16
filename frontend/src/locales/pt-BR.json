@@ -126,7 +126,14 @@
     "groupAdmin": "Administração",
     "groupAgents": "IA",
     "agents": "Agentes",
-    "aiAgents": "Agentes IA"
+    "aiAgents": "Agentes IA",
+    "documents": "Documentos",
+    "review": "Revisão",
+    "debts": "Dívidas",
+    "sources": "Fontes",
+    "processing": "Processamento",
+    "audit": "Auditoria",
+    "groupOperations": "Operações"
   },
   "invoices": {
     "title": "Cobranças",
@@ -549,7 +556,10 @@
     "fxRateUsed": "Taxa de câmbio: {{rate}}",
     "refreshRates": "Atualizar taxas de câmbio",
     "ratesRefreshed": "Taxas de câmbio atualizadas",
-    "ratesError": "Erro ao atualizar taxas de câmbio"
+    "ratesError": "Erro ao atualizar taxas de câmbio",
+    "pendingReviewCta": "{{count}} linhas extraídas esperam a sua revisão",
+    "reviewNow": "Revisar agora",
+    "debtsOutstanding": "Dívidas em aberto"
   },
   "transactions": {
     "title": "Transações",
@@ -962,7 +972,8 @@
         "description": "Bancos dos EUA e internacionais via SimpleFIN Bridge"
       }
     },
-    "reconnected": "Banco reconectado com sucesso"
+    "reconnected": "Banco reconectado com sucesso",
+    "multiInstitutionLink": "{{provider}} · {{count}} institutions"
   },
   "connections": {
     "settings": "Configurações da conexão",
@@ -2453,5 +2464,45 @@
     "importConfirmTitle": "Importar regras de conciliação?",
     "importConfirmDescription": "O arquivo {{file}} contém {{count}} regras.",
     "importOverwriteWarning": "A importação substitui as regras de conciliação deste espaço, inclusive a ordem delas. Não dá para desfazer."
+  },
+  "intelligence": {
+    "group": "Caixa de entrada",
+    "upload": "Enviar arquivo",
+    "uploadOk": "Arquivo guardado. Nada foi lançado até você revisar.",
+    "uploadErr": "Não foi possível guardar este arquivo",
+    "documentsHint": "Os originais ficam imutáveis. A extração preenche uma fila de revisão — o livro só muda quando você aprova as linhas.",
+    "optionalAccount": "Conta opcional para este arquivo",
+    "loading": "Carregando…",
+    "documentsEmpty": "Nenhum documento ainda. Envie um extrato, planilha ou PDF para começar.",
+    "review": "Revisar",
+    "reviewHint": "Nada vem pré-selecionado. Marque só as linhas que devem ir para o livro.",
+    "chooseAccount": "Conta para lançar",
+    "approve": "Aprovar selecionadas",
+    "reject": "Rejeitar",
+    "defer": "Adiar",
+    "approveOk": "Lançado no livro",
+    "rejectOk": "Rejeitado",
+    "deferOk": "Adiado",
+    "decideErr": "Não foi possível aplicar essa decisão",
+    "reviewEmpty": "Nada na fila. Envie um documento ou aguarde uma sincronização.",
+    "suggestion": "Sugestão",
+    "none": "nenhuma",
+    "possibleDuplicate": "Parece duplicata de um lançamento já confirmado",
+    "debtCreated": "Dívida salva",
+    "newDebt": "Nova dívida",
+    "debtsHint": "Empréstimos e outros passivos. Notas de quitação são premissas, não recomendação.",
+    "debtsEmpty": "Nenhuma dívida acompanhada ainda.",
+    "debtName": "Nome",
+    "creditor": "Credor",
+    "principal": "Principal",
+    "outstanding": "Saldo",
+    "debtAssumptionDefault": "Ignora efeitos fiscais; não é uma recomendação.",
+    "save": "Salvar",
+    "sourcesHint": "Gmail, Sheets e Outlook são somente leitura. APIs de escrita não são oferecidas.",
+    "retryOk": "Job reenfileirado",
+    "jobsEmpty": "Nenhum job de processamento.",
+    "attempts": "tentativas",
+    "retry": "Tentar de novo",
+    "auditEmpty": "Nenhum evento de auditoria ainda."
   }
 }

@@ -126,7 +126,14 @@
     "groupAgents": "AI",
     "agents": "Agenci",
     "aiAgents": "Agenci AI",
-    "collections": "Kolekcje"
+    "collections": "Kolekcje",
+    "documents": "Documents",
+    "review": "Review",
+    "debts": "Debts",
+    "sources": "Sources",
+    "processing": "Processing",
+    "audit": "Audit",
+    "groupOperations": "Operations"
   },
   "invoices": {
     "title": "Invoices",
@@ -559,7 +566,12 @@
     "fxRateUsed": "Kurs FX: {{rate}}",
     "refreshRates": "Odśwież kursy FX",
     "ratesRefreshed": "Zaktualizowano kursy FX",
-    "ratesError": "Nie udało się zaktualizować kursów FX"
+    "ratesError": "Nie udało się zaktualizować kursów FX",
+    "drillDownTotal": "{{count}} transactions · {{total}}",
+    "uncategorizedCta": "{{count}} transactions need categorizing",
+    "pendingReviewCta": "{{count}} extracted rows are waiting for your review",
+    "reviewNow": "Review now",
+    "debtsOutstanding": "Outstanding debts"
   },
   "transactions": {
     "title": "Transakcje",
@@ -813,7 +825,8 @@
         "thisMonth": "Bieżący miesiąc",
         "last90": "Ostatnie 90 dni",
         "thisYear": "Bieżący rok"
-      }
+      },
+      "nSelected": "{{count}} selected"
     },
     "bulkAddTags": "Dodaj tagi",
     "bulkRemoveTags": "Usuń tagi",
@@ -853,7 +866,15 @@
     "invoiceBadgeNoNumber": "Invoice",
     "invoiceBadgeTooltip": "Ta transakcja rozlicza fakturę. Otwórz ją.",
     "suggestionBadge": "Pytanie",
-    "suggestionBadgeTooltip": "Płatność może opłacić tę fakturę. Otwórz kolejkę, aby odpowiedzieć."
+    "suggestionBadgeTooltip": "Płatność może opłacić tę fakturę. Otwórz kolejkę, aby odpowiedzieć.",
+    "exportSelected": "Export Selected ({{count}})",
+    "summaryCount": "{{count}} transactions",
+    "bulkSuccess": "{{count}} transactions categorized",
+    "bulkDeleteTitle": "Delete {{count}} transactions?",
+    "bulkDeleteSuccess": "{{count}} transactions deleted",
+    "bulkAddToGroupTitle": "Add {{count}} transactions to a group",
+    "bulkAddToGroupSuccess": "{{count}} transactions added to group",
+    "installmentTooltip": "Installment plan — {{count}} charges totaling {{total}}"
   },
   "accounts": {
     "title": "Konta",
@@ -1010,7 +1031,11 @@
         "description": "Banki w USA i międzynarodowe przez SimpleFIN Bridge"
       }
     },
-    "reconnected": "Bank połączony ponownie"
+    "reconnected": "Bank połączony ponownie",
+    "multiInstitutionLink": "{{provider}} · {{count}} institutions",
+    "overdueDays": "Overdue by {{count}} days",
+    "dueIn": "Due in {{count}} days",
+    "mergedCount": "{{count}} transactions merged with synced data"
   },
   "connections": {
     "settings": "Ustawienia połączenia",
@@ -1124,7 +1149,9 @@
     "trackingWallet": "Portfel",
     "wallet": "Portfel",
     "selectWallet": "Wybierz portfel",
-    "walletHint": "Śledź ten cel według łącznej wartości wszystkich aktywów w wybranym portfelu."
+    "walletHint": "Śledź ten cel według łącznej wartości wszystkich aktywów w wybranym portfelu.",
+    "daysRemaining": "{{count}} days left",
+    "daysOverdue": "{{count}} days overdue"
   },
   "recurring": {
     "title": "Transakcje cykliczne",
@@ -1171,7 +1198,8 @@
     "autoGenerate": "Automatycznie generuj transakcje",
     "autoGenerateHelp": "Tworzy transakcję za każdym razem, gdy ten rachunek jest wymagalny. Wyłącz, aby poczekać na rzeczywiste obciążenie (np. z synchronizacji bankowej) i do tego czasu pokazywać je tylko jako nadchodzące.",
     "fxEstimate": "Szacunek na podstawie najnowszego kursu wymiany ({{rate}}). Ostateczna kwota może się zmienić.",
-    "confirmDeleteDescription": "Definicja transakcji cyklicznej „{{description}}” zostanie trwale usunięta. Istniejące transakcje pozostaną, ale utracą powiązanie z transakcją cykliczną. Tej operacji nie można cofnąć."
+    "confirmDeleteDescription": "Definicja transakcji cyklicznej „{{description}}” zostanie trwale usunięta. Istniejące transakcje pozostaną, ale utracą powiązanie z transakcją cykliczną. Tej operacji nie można cofnąć.",
+    "generated": "{{count}} transactions generated"
   },
   "rules": {
     "searchPlaceholder": "Szukaj reguł...",
@@ -1298,7 +1326,10 @@
       "rules": "Reguły",
       "queue": "Czeka na Ciebie",
       "history": "Historia"
-    }
+    },
+    "packRuleCount": "{{count}} rules",
+    "packInstalled": "{{count}} rules installed",
+    "applied": "Rules applied to {{count}} transactions"
   },
   "categories": {
     "title": "Kategorie",
@@ -1458,7 +1489,13 @@
       "invalid_date": "Nieprawidłowy format daty",
       "no_amount": "Brak kwoty wpływu lub wypływu",
       "invalid_amount": "Nieprawidłowy format kwoty"
-    }
+    },
+    "incomeCount": "{{count}} income",
+    "expenseCount": "{{count}} expenses",
+    "importButton": "Import {{count}} transactions",
+    "undoOrdersDescription": "This will delete the {{count}} orders imported from {{filename}} and recalculate the positions they touched. Holdings this import created are removed with them.",
+    "undoDescription": "This will delete {{count}} imported transactions from {{filename}}. This action cannot be undone.",
+    "previewInfo": "{{count}} transactions · format {{format}}"
   },
   "assetImport": {
     "title": "Importuj zlecenia inwestycyjne",
@@ -1782,7 +1819,9 @@
     "deleteMultipleTitle": "Usuń odbiorców",
     "deleteMultipleConfirm": "Czy na pewno chcesz usunąć {{count}} wybranych odbiorców? Usunie to ich również ze wszystkich powiązanych transakcji.",
     "typeUnset": "Nie określono",
-    "website": "Strona internetowa"
+    "website": "Strona internetowa",
+    "viewAllTransactions": "View all {{count}} transactions",
+    "merged": "Payees merged ({{count}} transactions reassigned)"
   },
   "fiscal": {
     "kind": {
@@ -1864,7 +1903,8 @@
     "previous": "Poprzedni",
     "next": "Następny",
     "rowsPerPage": "Wierszy na stronę",
-    "noResults": "Brak wyników"
+    "noResults": "Brak wyników",
+    "showMore": "+{{count}} more"
   },
   "splitGroups": {
     "title": "Grupy",
@@ -1987,7 +2027,9 @@
       "project": "Projekt",
       "client": "Klient",
       "other": "Inne"
-    }
+    },
+    "memberCount": "{{count}} members",
+    "splitWays": "split {{count}} ways"
   },
   "privacy": {
     "hide": "Ukryj wartości",
@@ -2222,7 +2264,8 @@
       "chunks_one": "{{count}} fragment",
       "chunks_few": "{{count}} fragmenty",
       "chunks_many": "{{count}} fragmentów",
-      "chunks_other": "{{count}} fragmentów"
+      "chunks_other": "{{count}} fragmentów",
+      "chunks": "{{count}} chunks"
     },
     "tools": {
       "title": "Narzędzia",
@@ -2272,7 +2315,8 @@
         "updateRecurring": "{{description}} → {{changes}}",
         "deactivateRecurring": "Zatrzymaj przyszłe wystąpienia „{{description}}” (historia zachowana)",
         "deleteRecurring": "Trwale usuń „{{description}}”",
-        "createGoal": "„{{name}}” — cel {{target}}, termin {{deadline}}"
+        "createGoal": "„{{name}}” — cel {{target}}, termin {{deadline}}",
+        "categorize": "{{count}} transaction(s) → {{category}}"
       }
     },
     "conversation": {
@@ -2558,5 +2602,45 @@
     "importConfirmTitle": "Zaimportować reguły dopasowania?",
     "importConfirmDescription": "Plik {{file}} zawiera {{count}} reguł.",
     "importOverwriteWarning": "Import zastępuje reguły dopasowania tej przestrzeni wraz z ich kolejnością. Tego nie da się cofnąć."
+  },
+  "intelligence": {
+    "group": "Inbox",
+    "upload": "Upload file",
+    "uploadOk": "File stored. Nothing was posted until you review it.",
+    "uploadErr": "Could not store this file",
+    "documentsHint": "Originals stay immutable. Extraction fills a review queue — the ledger is unchanged until you approve rows.",
+    "optionalAccount": "Optional account for this file",
+    "loading": "Loading…",
+    "documentsEmpty": "No documents yet. Upload a statement, spreadsheet or PDF to start.",
+    "review": "Review",
+    "reviewHint": "Nothing is pre-selected. Tick only the rows you want in the ledger.",
+    "chooseAccount": "Account to post into",
+    "approve": "Approve selected",
+    "reject": "Reject",
+    "defer": "Defer",
+    "approveOk": "Posted to the ledger",
+    "rejectOk": "Rejected",
+    "deferOk": "Deferred",
+    "decideErr": "Could not apply that decision",
+    "reviewEmpty": "Nothing waiting. Upload a document or wait for a source sync.",
+    "suggestion": "Suggestion",
+    "none": "none",
+    "possibleDuplicate": "Looks like a duplicate of a posted transaction",
+    "debtCreated": "Debt saved",
+    "newDebt": "New debt",
+    "debtsHint": "Loans and other liabilities. Payoff notes are assumptions, not advice.",
+    "debtsEmpty": "No debts tracked yet.",
+    "debtName": "Name",
+    "creditor": "Creditor",
+    "principal": "Principal",
+    "outstanding": "Outstanding",
+    "debtAssumptionDefault": "Ignores tax effects; not a recommendation.",
+    "save": "Save",
+    "sourcesHint": "Gmail, Sheets and Outlook are read-only. Write APIs are not offered.",
+    "retryOk": "Job queued again",
+    "jobsEmpty": "No processing jobs.",
+    "attempts": "attempts",
+    "retry": "Retry",
+    "auditEmpty": "No audit events yet."
   }
 }

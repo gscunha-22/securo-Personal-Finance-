@@ -39,7 +39,7 @@ async def test_backup_empty(client: AsyncClient, auth_headers):
         assert "transactions.json" in names
 
         metadata = json.loads(zf.read("metadata.json"))
-        assert metadata["format_version"] == "1.0"
+        assert metadata["format_version"] in {"1.0", "1.1"}
         assert "export_date" in metadata
         for count in metadata["entity_counts"].values():
             assert count == 0
@@ -141,7 +141,7 @@ async def test_backup_metadata_structure(client: AsyncClient, auth_headers):
         assert "metadata.json" in names
         meta = json.loads(zf.read("metadata.json"))
         assert "export_date" in meta
-        assert meta["format_version"] == "1.0"
+        assert meta["format_version"] == "1.1"
         assert "entity_counts" in meta
 
 
@@ -154,7 +154,7 @@ async def test_backup_post_without_password_is_a_plain_zip(client: AsyncClient, 
 
     with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
         assert "metadata.json" in zf.namelist()
-        assert json.loads(zf.read("metadata.json"))["format_version"] == "1.0"
+        assert json.loads(zf.read("metadata.json"))["format_version"] == "1.1"
 
 
 @pytest.mark.asyncio
@@ -203,3 +203,43 @@ async def test_backup_post_rejects_a_short_password(client: AsyncClient, auth_he
 async def test_backup_post_unauthenticated(client: AsyncClient):
     resp = await client.post("/api/export/backup", json={"password": "correct horse battery"})
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_backup_includes_intelligence_files_and_restore_is_additive(
+    client: AsyncClient, auth_headers
+):
+    created = await client.post(
+        "/api/debts",
+        headers=auth_headers,
+        json={
+            "name": "Student loan",
+            "creditor": "Bank",
+            "currency": "USD",
+            "principal": "10000.00",
+            "outstanding_balance": "8000.00",
+            "strategy_assumptions": "Ignores tax effects; not a recommendation.",
+        },
+    )
+    assert created.status_code == 201, created.text
+    debt_id = created.json()["id"]
+
+    backup = await client.get("/api/export/backup", headers=auth_headers)
+    assert backup.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(backup.content)) as zf:
+        assert "debts.json" in zf.namelist()
+        assert "vault_documents.json" in zf.namelist()
+        debts = json.loads(zf.read("debts.json"))
+        assert any(row["id"] == debt_id for row in debts)
+
+    restored = await client.post(
+        "/api/export/restore",
+        headers=auth_headers,
+        files={"file": ("backup.zip", backup.content, "application/zip")},
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["debts"] == 0
+
+    listed = (await client.get("/api/debts", headers=auth_headers)).json()
+    assert len(listed) == 1
+

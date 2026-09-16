@@ -2,6 +2,9 @@ import secrets
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
+
+from app.core.privacy import token_json_response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,12 +54,15 @@ async def login(
         )
         return {"requires_2fa": True, "temp_token": temp_token, "available_methods": available_methods}
 
-    # Normal login — generate JWT
+    # Normal login — generate JWT and a companion httpOnly session cookie.
     strategy = get_jwt_strategy()
     token = await strategy.write_token(user)
-    return {"access_token": token, "token_type": "bearer"}
+    return token_json_response(token)
 
 
 @router.post("/logout")
 async def logout():
-    return {"detail": "Logged out"}
+    response = JSONResponse({"detail": "Logged out"})
+    response.delete_cookie("session", path="/")
+    response.delete_cookie("csrf_token", path="/")
+    return response

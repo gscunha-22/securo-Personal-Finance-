@@ -40,6 +40,12 @@ const InvoicesPage = lazy(() => import('@/pages/invoices'))
 const InvoiceDetailPage = lazy(() => import('@/pages/invoice-detail'))
 const SharedInvoicePage = lazy(() => import('@/pages/shared-invoice'))
 const WorkspaceSettingsPage = lazy(() => import('@/pages/workspace-settings'))
+const DocumentsPage = lazy(() => import('@/pages/documents'))
+const ReviewPage = lazy(() => import('@/pages/review'))
+const DebtsPage = lazy(() => import('@/pages/debts'))
+const SourcesPage = lazy(() => import('@/pages/sources'))
+const ProcessingPage = lazy(() => import('@/pages/processing'))
+const AuditPage = lazy(() => import('@/pages/audit'))
 const OAuthCallbackPage = lazy(() => import('@/pages/oauth-callback'))
 const OIDCCallbackPage = lazy(() => import('@/pages/oidc-callback'))
 
@@ -95,6 +101,12 @@ function App() {
                   <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
                   <Route path="/enable-banking" element={<OAuthCallbackPage />} />
                   <Route path="/import" element={<ModuleRoute module="import"><ImportPage /></ModuleRoute>} />
+                  <Route path="/documents" element={<ModuleRoute module="documents"><DocumentsPage /></ModuleRoute>} />
+                  <Route path="/review" element={<ModuleRoute module="review"><ReviewPage /></ModuleRoute>} />
+                  <Route path="/debts" element={<ModuleRoute module="debts"><DebtsPage /></ModuleRoute>} />
+                  <Route path="/sources" element={<ModuleRoute module="sources"><SourcesPage /></ModuleRoute>} />
+                  <Route path="/processing" element={<ModuleRoute module="processing"><ProcessingPage /></ModuleRoute>} />
+                  <Route path="/audit" element={<ModuleRoute module="audit"><AuditPage /></ModuleRoute>} />
                   <Route path="/rules" element={<ModuleRoute module="rules"><RulesPage /></ModuleRoute>} />
                   <Route path="/categories" element={<ModuleRoute module="categories"><CategoriesPage /></ModuleRoute>} />
                   <Route path="/collections" element={<CollectionsPage />} />

@@ -619,6 +619,67 @@ async def get_summary(
         )
     )
 
+    from app.models.debt import Debt
+    from app.models.processing_job import ProcessingJob
+    from app.models.vault import ImportCandidate, SourceConnection, VaultDocument
+
+    pending_review_count = (
+        await session.scalar(
+            select(func.count()).select_from(ImportCandidate).where(
+                ImportCandidate.workspace_id == workspace_id,
+                ImportCandidate.status == "pending",
+            )
+        )
+    ) or 0
+    documents_processing_count = (
+        await session.scalar(
+            select(func.count()).select_from(VaultDocument).where(
+                VaultDocument.workspace_id == workspace_id,
+                VaultDocument.status.in_(["uploaded", "needs_ocr"]),
+            )
+        )
+    ) or 0
+    jobs_running = (
+        await session.scalar(
+            select(func.count()).select_from(ProcessingJob).where(
+                ProcessingJob.workspace_id == workspace_id,
+                ProcessingJob.status.in_(["queued", "running"]),
+            )
+        )
+    ) or 0
+    documents_processing_count = int(documents_processing_count) + int(jobs_running)
+    debt_n = (
+        await session.scalar(
+            select(func.count()).select_from(Debt).where(
+                Debt.workspace_id == workspace_id,
+                Debt.status == "active",
+            )
+        )
+    ) or 0
+    debt_total = None
+    if debt_n:
+        debt_total = await session.scalar(
+            select(func.coalesce(func.sum(Debt.outstanding_balance), 0)).where(
+                Debt.workspace_id == workspace_id,
+                Debt.status == "active",
+            )
+        )
+    last_doc = await session.scalar(
+        select(func.max(VaultDocument.created_at)).where(VaultDocument.workspace_id == workspace_id)
+    )
+    connectors = (await session.execute(
+        select(SourceConnection).where(SourceConnection.workspace_id == workspace_id)
+    )).scalars().all()
+    integrations = [
+        {
+            "provider": row.provider,
+            "status": row.status,
+            "last_sync_at": row.last_sync_at.isoformat() if row.last_sync_at else None,
+            "last_sync_result": row.last_sync_result,
+        }
+        for row in connectors
+    ]
+
     return DashboardSummary(
         total_balance=total_balance,
         total_balance_primary=round(total_balance_primary, 2),
@@ -640,6 +701,11 @@ async def get_summary(
         assets_value_primary=round(assets_value_primary, 2),
         primary_currency=primary_currency,
         pending_shares_net=round(pending_shares_net, 2),
+        pending_review_count=int(pending_review_count),
+        documents_processing_count=int(documents_processing_count),
+        debts_outstanding_primary=float(debt_total) if debt_total is not None else None,
+        last_document_sync_at=last_doc.isoformat() if last_doc else None,
+        integrations=integrations,
     )
 
 

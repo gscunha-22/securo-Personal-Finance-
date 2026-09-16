@@ -126,7 +126,14 @@
     "groupAdmin": "Адміністрування",
     "groupAgents": "ШІ",
     "agents": "Агенти",
-    "aiAgents": "ШІ-агенти"
+    "aiAgents": "ШІ-агенти",
+    "documents": "Documents",
+    "review": "Review",
+    "debts": "Debts",
+    "sources": "Sources",
+    "processing": "Processing",
+    "audit": "Audit",
+    "groupOperations": "Operations"
   },
   "invoices": {
     "title": "Invoices",
@@ -553,7 +560,10 @@
     "fxRateUsed": "Курс: {{rate}}",
     "refreshRates": "Оновити курси валют",
     "ratesRefreshed": "Курси валют оновлено",
-    "ratesError": "Не вдалося оновити курси валют"
+    "ratesError": "Не вдалося оновити курси валют",
+    "pendingReviewCta": "{{count}} extracted rows are waiting for your review",
+    "reviewNow": "Review now",
+    "debtsOutstanding": "Outstanding debts"
   },
   "transactions": {
     "title": "Транзакції",
@@ -826,7 +836,9 @@
     "invoiceBadgeNoNumber": "Invoice",
     "invoiceBadgeTooltip": "Ця операція закриває рахунок. Відкрити.",
     "suggestionBadge": "Питання",
-    "suggestionBadgeTooltip": "Платіж може закрити цей рахунок. Відкрийте чергу, щоб відповісти."
+    "suggestionBadgeTooltip": "Платіж може закрити цей рахунок. Відкрийте чергу, щоб відповісти.",
+    "bulkDeleteTitle": "Delete {{count}} transactions?",
+    "bulkDeleteSuccess": "{{count}} transactions deleted"
   },
   "accounts": {
     "title": "Рахунки",
@@ -974,7 +986,8 @@
         "description": "Банки США та інших країн через SimpleFIN Bridge"
       }
     },
-    "reconnected": "Банк успішно перепідключено"
+    "reconnected": "Банк успішно перепідключено",
+    "multiInstitutionLink": "{{provider}} · {{count}} institutions"
   },
   "connections": {
     "settings": "Налаштування підключення",
@@ -2465,5 +2478,45 @@
     "importConfirmTitle": "Імпортувати правила зіставлення?",
     "importConfirmDescription": "Файл {{file}} містить правил: {{count}}.",
     "importOverwriteWarning": "Імпорт замінює правила зіставлення цього простору разом з їхнім порядком. Скасувати не можна."
+  },
+  "intelligence": {
+    "group": "Inbox",
+    "upload": "Upload file",
+    "uploadOk": "File stored. Nothing was posted until you review it.",
+    "uploadErr": "Could not store this file",
+    "documentsHint": "Originals stay immutable. Extraction fills a review queue — the ledger is unchanged until you approve rows.",
+    "optionalAccount": "Optional account for this file",
+    "loading": "Loading…",
+    "documentsEmpty": "No documents yet. Upload a statement, spreadsheet or PDF to start.",
+    "review": "Review",
+    "reviewHint": "Nothing is pre-selected. Tick only the rows you want in the ledger.",
+    "chooseAccount": "Account to post into",
+    "approve": "Approve selected",
+    "reject": "Reject",
+    "defer": "Defer",
+    "approveOk": "Posted to the ledger",
+    "rejectOk": "Rejected",
+    "deferOk": "Deferred",
+    "decideErr": "Could not apply that decision",
+    "reviewEmpty": "Nothing waiting. Upload a document or wait for a source sync.",
+    "suggestion": "Suggestion",
+    "none": "none",
+    "possibleDuplicate": "Looks like a duplicate of a posted transaction",
+    "debtCreated": "Debt saved",
+    "newDebt": "New debt",
+    "debtsHint": "Loans and other liabilities. Payoff notes are assumptions, not advice.",
+    "debtsEmpty": "No debts tracked yet.",
+    "debtName": "Name",
+    "creditor": "Creditor",
+    "principal": "Principal",
+    "outstanding": "Outstanding",
+    "debtAssumptionDefault": "Ignores tax effects; not a recommendation.",
+    "save": "Save",
+    "sourcesHint": "Gmail, Sheets and Outlook are read-only. Write APIs are not offered.",
+    "retryOk": "Job queued again",
+    "jobsEmpty": "No processing jobs.",
+    "attempts": "attempts",
+    "retry": "Retry",
+    "auditEmpty": "No audit events yet."
   }
 }

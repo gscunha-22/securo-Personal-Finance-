@@ -701,6 +701,101 @@ export interface DashboardSummary {
   // Negative = net liability, positive = net receivable. Already
   // accounts for partial settlements.
   pending_shares_net: number
+  pending_review_count?: number
+  documents_processing_count?: number
+  debts_outstanding_primary?: number | null
+  last_document_sync_at?: string | null
+  integrations?: DashboardIntegration[]
+}
+
+export interface DashboardIntegration {
+  provider: string
+  status: string
+  last_sync_at: string | null
+  last_sync_result?: string | null
+}
+
+export interface VaultDocument {
+  id: string
+  document_type: string
+  status: string
+  origin: string
+  filename: string
+  mime: string
+  sha256: string
+  byte_size: number
+  created_at: string
+}
+
+export interface ImportCandidate {
+  id: string
+  document_id: string
+  selected: boolean
+  status: string
+  description: string
+  amount: string | number
+  currency: string
+  competence_date: string
+  payment_date: string | null
+  txn_type: string
+  payee: string | null
+  locator: string | null
+  confidence: string | number
+  duplicate_of_transaction_id: string | null
+  suggested_category: string | null
+  suggestion_rationale: string | null
+  suggestion_confidence: string | number | null
+  posted_transaction_id: string | null
+}
+
+export interface ProcessingJob {
+  id: string
+  job_type: string
+  status: string
+  attempts: number
+  error: string | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+}
+
+export interface AuditEvent {
+  id: string
+  action: string
+  entity_type: string
+  entity_id: string | null
+  summary: string
+  created_at: string
+}
+
+export interface SourceConnection {
+  id: string
+  provider: string
+  display_name: string
+  status: string
+  granted_scopes: string | null
+  last_sync_at: string | null
+  last_sync_result: string | null
+  last_error: string | null
+}
+
+export interface Debt {
+  id: string
+  name: string
+  creditor: string
+  currency: string
+  principal: string | number
+  outstanding_balance: string | number
+  interest_rate: string | number | null
+  indexer: string | null
+  origination_date: string | null
+  maturity_date: string | null
+  collateral: string | null
+  estimated_cost: string | number | null
+  payoff_strategy: string | null
+  strategy_assumptions: string | null
+  notes: string | null
+  status: string
 }
 
 export interface SpendingByCategory {

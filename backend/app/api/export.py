@@ -2,25 +2,30 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
-from app.core.workspace_context import WorkspaceContext, current_workspace
+from app.core.workspace_context import WorkspaceContext, current_workspace, current_writable_workspace
 from app.models.account import Account
 from app.models.asset import Asset
 from app.models.asset_value import AssetValue
+from app.models.audit import AuditEvent
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.category_group import CategoryGroup
+from app.models.debt import Debt, DebtInstallment, DebtPayment
 from app.models.import_log import ImportLog
+from app.models.processing_job import ProcessingJob
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.rule import Rule
 from app.models.transaction import Transaction
+from app.models.vault import ImportCandidate, StoredObject, VaultDocument
 from app.schemas.export import BackupRequest
 from app.services.backup_service import build_backup_archive
+from app.services.restore_service import restore_workspace_archive
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
@@ -53,6 +58,14 @@ async def _collect(ctx: WorkspaceContext, session: AsyncSession) -> dict[str, ob
     budgets = (await session.execute(select(Budget).where(Budget.workspace_id == ws_id))).scalars().all()
     assets = (await session.execute(select(Asset).where(Asset.workspace_id == ws_id))).scalars().all()
     import_logs = (await session.execute(select(ImportLog).where(ImportLog.workspace_id == ws_id))).scalars().all()
+    debts = (await session.execute(select(Debt).where(Debt.workspace_id == ws_id))).scalars().all()
+    debt_installments = (await session.execute(select(DebtInstallment).where(DebtInstallment.workspace_id == ws_id))).scalars().all()
+    debt_payments = (await session.execute(select(DebtPayment).where(DebtPayment.workspace_id == ws_id))).scalars().all()
+    vault_documents = (await session.execute(select(VaultDocument).where(VaultDocument.workspace_id == ws_id))).scalars().all()
+    stored_objects = (await session.execute(select(StoredObject).where(StoredObject.workspace_id == ws_id))).scalars().all()
+    import_candidates = (await session.execute(select(ImportCandidate).where(ImportCandidate.workspace_id == ws_id))).scalars().all()
+    processing_jobs = (await session.execute(select(ProcessingJob).where(ProcessingJob.workspace_id == ws_id))).scalars().all()
+    audit_events = (await session.execute(select(AuditEvent).where(AuditEvent.workspace_id == ws_id))).scalars().all()
 
     asset_ids = [a.id for a in assets]
     if asset_ids:
@@ -71,6 +84,14 @@ async def _collect(ctx: WorkspaceContext, session: AsyncSession) -> dict[str, ob
         "assets": assets,
         "asset_values": asset_values,
         "import_logs": import_logs,
+        "debts": debts,
+        "debt_installments": debt_installments,
+        "debt_payments": debt_payments,
+        "vault_documents": vault_documents,
+        "stored_objects": stored_objects,
+        "import_candidates": import_candidates,
+        "processing_jobs": processing_jobs,
+        "audit_events": audit_events,
     }
 
     files: dict[str, object] = {}
@@ -82,10 +103,11 @@ async def _collect(ctx: WorkspaceContext, session: AsyncSession) -> dict[str, ob
 
     files["metadata.json"] = {
         "export_date": datetime.now(timezone.utc).isoformat(),
-        "format_version": "1.0",
+        "format_version": "1.1",
         "workspace_id": str(ws_id),
         "workspace_name": ctx.workspace.name,
         "entity_counts": entity_counts,
+        "includes_original_files": False,
     }
     return files
 
@@ -127,3 +149,30 @@ async def backup_protected(
     """
     password = body.password.get_secret_value() if body.password else None
     return _as_download(build_backup_archive(await _collect(ctx, session), password))
+
+
+@router.post("/restore")
+async def restore(
+    file: UploadFile = File(...),
+    password: str | None = Form(None),
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Additive restore of debts from a workspace backup zip.
+
+    Existing rows are left untouched. Import candidates are never posted.
+    Original document bytes are not in the zip; restore those with the
+    instance backup scripts.
+    """
+    data = await file.read()
+    try:
+        restored = await restore_workspace_archive(
+            session,
+            workspace_id=ctx.workspace.id,
+            user_id=ctx.user_id,
+            data=data,
+            password=password or None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return restored

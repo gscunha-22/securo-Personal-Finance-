@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import UserManager, get_jwt_strategy, get_user_manager
 from app.core.config import get_settings
 from app.core.database import get_async_session
+from app.core.privacy import attach_session_cookies, registration_allowed
 from app.core.redis import get_redis
 from app.models.account import Account
 from app.models.user import User
@@ -306,7 +307,7 @@ async def _get_or_create_oidc_user(
         return user
     if settings.oidc_require_verified_email and email_verified not in (True, "true"):
         raise HTTPException(status_code=400, detail="OIDC email is not verified")
-    if not await admin_service.is_registration_enabled(session):
+    if not await registration_allowed(session):
         raise HTTPException(status_code=403, detail="Registration is disabled")
     if not settings.oidc_auto_register:
         raise HTTPException(status_code=403, detail="No local account is linked to this OIDC identity")
@@ -390,4 +391,6 @@ async def oidc_callback(
         raise HTTPException(status_code=403, detail="User is inactive")
     token = await get_jwt_strategy().write_token(user)
     frontend_url = get_settings().frontend_url.rstrip("/")
-    return RedirectResponse(f"{frontend_url}/auth/oidc/callback#access_token={token}&token_type=bearer")
+    redirect = RedirectResponse(f"{frontend_url}/auth/oidc/callback#access_token={token}&token_type=bearer")
+    attach_session_cookies(redirect, token)
+    return redirect

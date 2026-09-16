@@ -29,6 +29,7 @@ from app.core.auth import current_active_user, get_jwt_strategy
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.config import get_settings
 from app.core.database import get_async_session
+from app.core.privacy import token_json_response
 from app.core.rate_limit import login_rate_limit
 from app.core.redis import get_redis
 from app.core.webauthn import resolve_webauthn_context
@@ -398,7 +399,7 @@ async def verify_passkey_authentication(
 
     strategy = get_jwt_strategy()
     token = await strategy.write_token(user)
-    return {"access_token": token, "token_type": "bearer"}
+    return token_json_response(token)
 
 
 @router.post(
@@ -477,4 +478,4 @@ async def verify_passkey_second_factor(
 
     strategy = get_jwt_strategy()
     token = await strategy.write_token(user)
-    return {"access_token": token, "token_type": "bearer"}
+    return token_json_response(token)

@@ -126,7 +126,14 @@
     "groupAdmin": "管理",
     "groupAgents": "AI",
     "agents": "エージェント",
-    "aiAgents": "AIエージェント"
+    "aiAgents": "AIエージェント",
+    "documents": "Documents",
+    "review": "Review",
+    "debts": "Debts",
+    "sources": "Sources",
+    "processing": "Processing",
+    "audit": "Audit",
+    "groupOperations": "Operations"
   },
   "invoices": {
     "title": "請求書",
@@ -549,7 +556,10 @@
     "fxRateUsed": "為替レート: {{rate}}",
     "refreshRates": "為替レートを更新",
     "ratesRefreshed": "為替レートを更新しました",
-    "ratesError": "為替レートの更新に失敗しました"
+    "ratesError": "為替レートの更新に失敗しました",
+    "pendingReviewCta": "{{count}} extracted rows are waiting for your review",
+    "reviewNow": "Review now",
+    "debtsOutstanding": "Outstanding debts"
   },
   "transactions": {
     "title": "取引",
@@ -2452,5 +2462,45 @@
     "importConfirmTitle": "照合ルールをインポートしますか?",
     "importConfirmDescription": "ファイル{{file}}には{{count}}件のルールが含まれています。",
     "importOverwriteWarning": "インポートすると、このワークスペースの現在の照合ルールが順序ごと置き換わります。この操作は取り消せません。"
+  },
+  "intelligence": {
+    "group": "Inbox",
+    "upload": "Upload file",
+    "uploadOk": "File stored. Nothing was posted until you review it.",
+    "uploadErr": "Could not store this file",
+    "documentsHint": "Originals stay immutable. Extraction fills a review queue — the ledger is unchanged until you approve rows.",
+    "optionalAccount": "Optional account for this file",
+    "loading": "Loading…",
+    "documentsEmpty": "No documents yet. Upload a statement, spreadsheet or PDF to start.",
+    "review": "Review",
+    "reviewHint": "Nothing is pre-selected. Tick only the rows you want in the ledger.",
+    "chooseAccount": "Account to post into",
+    "approve": "Approve selected",
+    "reject": "Reject",
+    "defer": "Defer",
+    "approveOk": "Posted to the ledger",
+    "rejectOk": "Rejected",
+    "deferOk": "Deferred",
+    "decideErr": "Could not apply that decision",
+    "reviewEmpty": "Nothing waiting. Upload a document or wait for a source sync.",
+    "suggestion": "Suggestion",
+    "none": "none",
+    "possibleDuplicate": "Looks like a duplicate of a posted transaction",
+    "debtCreated": "Debt saved",
+    "newDebt": "New debt",
+    "debtsHint": "Loans and other liabilities. Payoff notes are assumptions, not advice.",
+    "debtsEmpty": "No debts tracked yet.",
+    "debtName": "Name",
+    "creditor": "Creditor",
+    "principal": "Principal",
+    "outstanding": "Outstanding",
+    "debtAssumptionDefault": "Ignores tax effects; not a recommendation.",
+    "save": "Save",
+    "sourcesHint": "Gmail, Sheets and Outlook are read-only. Write APIs are not offered.",
+    "retryOk": "Job queued again",
+    "jobsEmpty": "No processing jobs.",
+    "attempts": "attempts",
+    "retry": "Retry",
+    "auditEmpty": "No audit events yet."
   }
 }

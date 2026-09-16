@@ -126,7 +126,14 @@
     "groupAdmin": "Administrácia",
     "groupAgents": "AI",
     "agents": "Agenti",
-    "aiAgents": "AI agenti"
+    "aiAgents": "AI agenti",
+    "documents": "Documents",
+    "review": "Review",
+    "debts": "Debts",
+    "sources": "Sources",
+    "processing": "Processing",
+    "audit": "Audit",
+    "groupOperations": "Operations"
   },
   "invoices": {
     "title": "Faktúry",
@@ -561,7 +568,10 @@
     "fxRateUsed": "Kurz: {{rate}}",
     "refreshRates": "Obnoviť kurzy",
     "ratesRefreshed": "Kurzy aktualizované",
-    "ratesError": "Kurzy sa nepodarilo aktualizovať"
+    "ratesError": "Kurzy sa nepodarilo aktualizovať",
+    "pendingReviewCta": "{{count}} extracted rows are waiting for your review",
+    "reviewNow": "Review now",
+    "debtsOutstanding": "Outstanding debts"
   },
   "transactions": {
     "title": "Transakcie",
@@ -2592,5 +2602,45 @@
     "importConfirmTitle": "Importovať pravidlá párovania?",
     "importConfirmDescription": "Súbor {{file}} obsahuje {{count}} pravidiel.",
     "importOverwriteWarning": "Import nahradí pravidlá párovania tohto priestoru vrátane ich poradia. Nedá sa to vrátiť."
+  },
+  "intelligence": {
+    "group": "Inbox",
+    "upload": "Upload file",
+    "uploadOk": "File stored. Nothing was posted until you review it.",
+    "uploadErr": "Could not store this file",
+    "documentsHint": "Originals stay immutable. Extraction fills a review queue — the ledger is unchanged until you approve rows.",
+    "optionalAccount": "Optional account for this file",
+    "loading": "Loading…",
+    "documentsEmpty": "No documents yet. Upload a statement, spreadsheet or PDF to start.",
+    "review": "Review",
+    "reviewHint": "Nothing is pre-selected. Tick only the rows you want in the ledger.",
+    "chooseAccount": "Account to post into",
+    "approve": "Approve selected",
+    "reject": "Reject",
+    "defer": "Defer",
+    "approveOk": "Posted to the ledger",
+    "rejectOk": "Rejected",
+    "deferOk": "Deferred",
+    "decideErr": "Could not apply that decision",
+    "reviewEmpty": "Nothing waiting. Upload a document or wait for a source sync.",
+    "suggestion": "Suggestion",
+    "none": "none",
+    "possibleDuplicate": "Looks like a duplicate of a posted transaction",
+    "debtCreated": "Debt saved",
+    "newDebt": "New debt",
+    "debtsHint": "Loans and other liabilities. Payoff notes are assumptions, not advice.",
+    "debtsEmpty": "No debts tracked yet.",
+    "debtName": "Name",
+    "creditor": "Creditor",
+    "principal": "Principal",
+    "outstanding": "Outstanding",
+    "debtAssumptionDefault": "Ignores tax effects; not a recommendation.",
+    "save": "Save",
+    "sourcesHint": "Gmail, Sheets and Outlook are read-only. Write APIs are not offered.",
+    "retryOk": "Job queued again",
+    "jobsEmpty": "No processing jobs.",
+    "attempts": "attempts",
+    "retry": "Retry",
+    "auditEmpty": "No audit events yet."
   }
 }

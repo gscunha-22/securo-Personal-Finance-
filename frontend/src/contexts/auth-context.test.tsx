@@ -13,6 +13,7 @@ const auth = vi.hoisted(() => ({
   login: vi.fn(),
   verify2fa: vi.fn(),
   register: vi.fn(),
+  logout: vi.fn(),
 }))
 vi.mock('@/lib/api', () => ({ auth }))
 

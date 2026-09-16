@@ -208,11 +208,14 @@ async def date_format(
     return {"format": fmt}
 
 
+from app.core.privacy import registration_allowed
+
+
 async def check_registration_enabled(
     request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
-    enabled = await admin_service.is_registration_enabled(session)
+    enabled = await registration_allowed(session)
     if not enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

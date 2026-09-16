@@ -202,3 +202,16 @@ jobs:
           sudo mv kubeconform /usr/local/bin/
 
           helm template securo-test charts/securo | kubeconform -summary -strict
+
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Run Gitleaks
+        run: |
+          set -euo pipefail
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz | tar -xz gitleaks
+          ./gitleaks detect --no-banner --source . --verbose
