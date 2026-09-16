@@ -972,8 +972,7 @@
         "description": "Banche statunitensi e internazionali tramite SimpleFIN Bridge"
       }
     },
-    "reconnected": "Banca riconnessa correttamente",
-    "multiInstitutionLink": "{{provider}} · {{count}} institutions"
+    "reconnected": "Banca riconnessa correttamente"
   },
   "connections": {
     "settings": "Impostazioni connessione",

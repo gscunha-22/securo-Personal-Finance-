@@ -108,24 +108,43 @@ def sign_csrf(token: str) -> str:
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    _CSRF_EXEMPT_PREFIXES = (
+        "/api/auth/login",
+        "/api/auth/logout",
+        "/api/auth/register",
+        "/api/auth/forgot-password",
+        "/api/auth/reset-password",
+        "/api/auth/2fa/verify",
+        "/api/auth/passkeys/authenticate",
+        "/api/auth/passkeys/2fa",
+        "/api/auth/oidc",
+        "/api/setup/create-admin",
+    )
+
     async def dispatch(self, request: Request, call_next):
         started = datetime.now(timezone.utc)
         correlation = request.headers.get("x-correlation-id") or hashlib.sha1(
             f"{started.isoformat()}{request.url.path}".encode()
         ).hexdigest()[:16]
         request.state.correlation_id = correlation
-        if request.method in {"POST", "PATCH", "PUT", "DELETE"} and request.cookies.get("session"):
-            if not request.headers.get("authorization"):
-                csrf_cookie = request.cookies.get("csrf_token")
-                csrf_header = request.headers.get("x-csrf-token")
-                if not (csrf_cookie and csrf_header and hmac.compare_digest(csrf_cookie, csrf_header)):
-                    response = Response(
-                        content='{"detail":"CSRF token mismatch"}',
-                        media_type="application/json",
-                        status_code=403,
-                    )
-                    response.headers["X-Correlation-Id"] = correlation
-                    return response
+        path = request.url.path
+        exempt = any(path == prefix or path.startswith(prefix + "/") for prefix in self._CSRF_EXEMPT_PREFIXES)
+        if (
+            request.method in {"POST", "PATCH", "PUT", "DELETE"}
+            and request.cookies.get("session")
+            and not request.headers.get("authorization")
+            and not exempt
+        ):
+            csrf_cookie = request.cookies.get("csrf_token")
+            csrf_header = request.headers.get("x-csrf-token")
+            if not (csrf_cookie and csrf_header and hmac.compare_digest(csrf_cookie, csrf_header)):
+                response = Response(
+                    content='{"detail":"CSRF token mismatch"}',
+                    media_type="application/json",
+                    status_code=403,
+                )
+                response.headers["X-Correlation-Id"] = correlation
+                return response
         response: Response = await call_next(request)
         response.headers["X-Correlation-Id"] = correlation
         response.headers["X-Content-Type-Options"] = "nosniff"

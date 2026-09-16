@@ -567,8 +567,6 @@
     "refreshRates": "Odśwież kursy FX",
     "ratesRefreshed": "Zaktualizowano kursy FX",
     "ratesError": "Nie udało się zaktualizować kursów FX",
-    "drillDownTotal": "{{count}} transactions · {{total}}",
-    "uncategorizedCta": "{{count}} transactions need categorizing",
     "pendingReviewCta": "{{count}} extracted rows are waiting for your review",
     "reviewNow": "Review now",
     "debtsOutstanding": "Outstanding debts"
@@ -825,8 +823,7 @@
         "thisMonth": "Bieżący miesiąc",
         "last90": "Ostatnie 90 dni",
         "thisYear": "Bieżący rok"
-      },
-      "nSelected": "{{count}} selected"
+      }
     },
     "bulkAddTags": "Dodaj tagi",
     "bulkRemoveTags": "Usuń tagi",
@@ -866,15 +863,7 @@
     "invoiceBadgeNoNumber": "Invoice",
     "invoiceBadgeTooltip": "Ta transakcja rozlicza fakturę. Otwórz ją.",
     "suggestionBadge": "Pytanie",
-    "suggestionBadgeTooltip": "Płatność może opłacić tę fakturę. Otwórz kolejkę, aby odpowiedzieć.",
-    "exportSelected": "Export Selected ({{count}})",
-    "summaryCount": "{{count}} transactions",
-    "bulkSuccess": "{{count}} transactions categorized",
-    "bulkDeleteTitle": "Delete {{count}} transactions?",
-    "bulkDeleteSuccess": "{{count}} transactions deleted",
-    "bulkAddToGroupTitle": "Add {{count}} transactions to a group",
-    "bulkAddToGroupSuccess": "{{count}} transactions added to group",
-    "installmentTooltip": "Installment plan — {{count}} charges totaling {{total}}"
+    "suggestionBadgeTooltip": "Płatność może opłacić tę fakturę. Otwórz kolejkę, aby odpowiedzieć."
   },
   "accounts": {
     "title": "Konta",
@@ -1031,11 +1020,7 @@
         "description": "Banki w USA i międzynarodowe przez SimpleFIN Bridge"
       }
     },
-    "reconnected": "Bank połączony ponownie",
-    "multiInstitutionLink": "{{provider}} · {{count}} institutions",
-    "overdueDays": "Overdue by {{count}} days",
-    "dueIn": "Due in {{count}} days",
-    "mergedCount": "{{count}} transactions merged with synced data"
+    "reconnected": "Bank połączony ponownie"
   },
   "connections": {
     "settings": "Ustawienia połączenia",
@@ -1149,9 +1134,7 @@
     "trackingWallet": "Portfel",
     "wallet": "Portfel",
     "selectWallet": "Wybierz portfel",
-    "walletHint": "Śledź ten cel według łącznej wartości wszystkich aktywów w wybranym portfelu.",
-    "daysRemaining": "{{count}} days left",
-    "daysOverdue": "{{count}} days overdue"
+    "walletHint": "Śledź ten cel według łącznej wartości wszystkich aktywów w wybranym portfelu."
   },
   "recurring": {
     "title": "Transakcje cykliczne",
@@ -1198,8 +1181,7 @@
     "autoGenerate": "Automatycznie generuj transakcje",
     "autoGenerateHelp": "Tworzy transakcję za każdym razem, gdy ten rachunek jest wymagalny. Wyłącz, aby poczekać na rzeczywiste obciążenie (np. z synchronizacji bankowej) i do tego czasu pokazywać je tylko jako nadchodzące.",
     "fxEstimate": "Szacunek na podstawie najnowszego kursu wymiany ({{rate}}). Ostateczna kwota może się zmienić.",
-    "confirmDeleteDescription": "Definicja transakcji cyklicznej „{{description}}” zostanie trwale usunięta. Istniejące transakcje pozostaną, ale utracą powiązanie z transakcją cykliczną. Tej operacji nie można cofnąć.",
-    "generated": "{{count}} transactions generated"
+    "confirmDeleteDescription": "Definicja transakcji cyklicznej „{{description}}” zostanie trwale usunięta. Istniejące transakcje pozostaną, ale utracą powiązanie z transakcją cykliczną. Tej operacji nie można cofnąć."
   },
   "rules": {
     "searchPlaceholder": "Szukaj reguł...",
@@ -1326,10 +1308,7 @@
       "rules": "Reguły",
       "queue": "Czeka na Ciebie",
       "history": "Historia"
-    },
-    "packRuleCount": "{{count}} rules",
-    "packInstalled": "{{count}} rules installed",
-    "applied": "Rules applied to {{count}} transactions"
+    }
   },
   "categories": {
     "title": "Kategorie",
@@ -1489,13 +1468,7 @@
       "invalid_date": "Nieprawidłowy format daty",
       "no_amount": "Brak kwoty wpływu lub wypływu",
       "invalid_amount": "Nieprawidłowy format kwoty"
-    },
-    "incomeCount": "{{count}} income",
-    "expenseCount": "{{count}} expenses",
-    "importButton": "Import {{count}} transactions",
-    "undoOrdersDescription": "This will delete the {{count}} orders imported from {{filename}} and recalculate the positions they touched. Holdings this import created are removed with them.",
-    "undoDescription": "This will delete {{count}} imported transactions from {{filename}}. This action cannot be undone.",
-    "previewInfo": "{{count}} transactions · format {{format}}"
+    }
   },
   "assetImport": {
     "title": "Importuj zlecenia inwestycyjne",
@@ -1819,9 +1792,7 @@
     "deleteMultipleTitle": "Usuń odbiorców",
     "deleteMultipleConfirm": "Czy na pewno chcesz usunąć {{count}} wybranych odbiorców? Usunie to ich również ze wszystkich powiązanych transakcji.",
     "typeUnset": "Nie określono",
-    "website": "Strona internetowa",
-    "viewAllTransactions": "View all {{count}} transactions",
-    "merged": "Payees merged ({{count}} transactions reassigned)"
+    "website": "Strona internetowa"
   },
   "fiscal": {
     "kind": {
@@ -1903,8 +1874,7 @@
     "previous": "Poprzedni",
     "next": "Następny",
     "rowsPerPage": "Wierszy na stronę",
-    "noResults": "Brak wyników",
-    "showMore": "+{{count}} more"
+    "noResults": "Brak wyników"
   },
   "splitGroups": {
     "title": "Grupy",
@@ -2027,9 +1997,7 @@
       "project": "Projekt",
       "client": "Klient",
       "other": "Inne"
-    },
-    "memberCount": "{{count}} members",
-    "splitWays": "split {{count}} ways"
+    }
   },
   "privacy": {
     "hide": "Ukryj wartości",
@@ -2264,8 +2232,7 @@
       "chunks_one": "{{count}} fragment",
       "chunks_few": "{{count}} fragmenty",
       "chunks_many": "{{count}} fragmentów",
-      "chunks_other": "{{count}} fragmentów",
-      "chunks": "{{count}} chunks"
+      "chunks_other": "{{count}} fragmentów"
     },
     "tools": {
       "title": "Narzędzia",
@@ -2315,8 +2282,7 @@
         "updateRecurring": "{{description}} → {{changes}}",
         "deactivateRecurring": "Zatrzymaj przyszłe wystąpienia „{{description}}” (historia zachowana)",
         "deleteRecurring": "Trwale usuń „{{description}}”",
-        "createGoal": "„{{name}}” — cel {{target}}, termin {{deadline}}",
-        "categorize": "{{count}} transaction(s) → {{category}}"
+        "createGoal": "„{{name}}” — cel {{target}}, termin {{deadline}}"
       }
     },
     "conversation": {

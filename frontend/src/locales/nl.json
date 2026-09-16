@@ -972,8 +972,7 @@
         "description": "Amerikaanse en internationale banken via SimpleFIN Bridge"
       }
     },
-    "reconnected": "Bank heeft opnieuw verbinding gemaakt",
-    "multiInstitutionLink": "{{provider}} · {{count}} institutions"
+    "reconnected": "Bank heeft opnieuw verbinding gemaakt"
   },
   "connections": {
     "settings": "Verbindingsinstellingen",

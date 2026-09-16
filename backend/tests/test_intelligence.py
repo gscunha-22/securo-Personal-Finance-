@@ -1,4 +1,3 @@
-import uuid
 from datetime import timedelta, timezone
 from datetime import datetime
 
@@ -101,12 +100,13 @@ async def test_same_file_is_idempotent(client: AsyncClient, auth_headers, test_a
 async def test_approve_posts_and_retry_does_not_duplicate(
     client: AsyncClient, auth_headers, test_account, vault_dir
 ):
-    uploaded = await client.post(
+    response = await client.post(
         "/api/documents",
         headers=auth_headers,
         files={"file": ("stmt.csv", CSV, "text/csv")},
         data={"account_id": str(test_account.id)},
     )
+    assert response.status_code == 201, response.text
     candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
     decision = await client.post(
         "/api/review/decisions",

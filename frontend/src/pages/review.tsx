@@ -22,7 +22,7 @@ export default function ReviewPage() {
     queryKey: ['review-candidates'],
     queryFn: () => intelligence.listCandidates('pending'),
   })
-  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: accountsApi.list })
+  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: () => accountsApi.list() })
 
   const selectedIds = useMemo(
     () => Object.entries(checked).filter(([, on]) => on).map(([id]) => id),

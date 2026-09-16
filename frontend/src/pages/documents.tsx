@@ -19,7 +19,7 @@ export default function DocumentsPage() {
     queryKey: ['documents'],
     queryFn: intelligence.listDocuments,
   })
-  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: accountsApi.list })
+  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: () => accountsApi.list() })
 
   const upload = useMutation({
     mutationFn: (file: File) => intelligence.uploadDocument(file, accountId || undefined),

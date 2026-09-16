@@ -836,9 +836,7 @@
     "invoiceBadgeNoNumber": "Invoice",
     "invoiceBadgeTooltip": "Ця операція закриває рахунок. Відкрити.",
     "suggestionBadge": "Питання",
-    "suggestionBadgeTooltip": "Платіж може закрити цей рахунок. Відкрийте чергу, щоб відповісти.",
-    "bulkDeleteTitle": "Delete {{count}} transactions?",
-    "bulkDeleteSuccess": "{{count}} transactions deleted"
+    "suggestionBadgeTooltip": "Платіж може закрити цей рахунок. Відкрийте чергу, щоб відповісти."
   },
   "accounts": {
     "title": "Рахунки",
@@ -986,8 +984,7 @@
         "description": "Банки США та інших країн через SimpleFIN Bridge"
       }
     },
-    "reconnected": "Банк успішно перепідключено",
-    "multiInstitutionLink": "{{provider}} · {{count}} institutions"
+    "reconnected": "Банк успішно перепідключено"
   },
   "connections": {
     "settings": "Налаштування підключення",

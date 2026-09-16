@@ -23,7 +23,6 @@ from app.core.redis import get_redis
 from app.models.account import Account
 from app.models.user import User
 from app.models.workspace import WORKSPACE_ROLES, Workspace, WorkspaceMember
-from app.services import admin_service
 from app.services.category_service import create_default_categories
 from app.services.rule_service import create_default_rules
 from app.services.workspace_service import create_personal_workspace_for_user

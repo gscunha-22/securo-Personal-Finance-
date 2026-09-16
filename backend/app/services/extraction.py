@@ -5,7 +5,6 @@ import zipfile
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Optional
 
 from pypdf import PdfReader
 
@@ -34,10 +33,10 @@ def detect_mime(data: bytes, filename: str, declared: str) -> str:
         return "application/x-qif"
     if b"<CAMT." in data[:2000].upper() or b"CAMT.053" in data[:2000].upper():
         return "application/xml"
-    if declared.startswith("text/") or filename.lower().endswith(".csv"):
+    if _looks_like_csv(data):
         return "text/csv"
-    if _looks_like_text(data):
-        return "text/csv"
+    if _looks_like_text(data) and declared.startswith("text/plain"):
+        return "text/plain"
     return "application/octet-stream"
 
 
@@ -52,6 +51,14 @@ def _looks_like_text(data: bytes) -> bool:
         return True
     except UnicodeDecodeError:
         return False
+
+
+def _looks_like_csv(data: bytes) -> bool:
+    if not _looks_like_text(data):
+        return False
+    sample = data[:2048].decode("utf-8")
+    first = next((line for line in sample.splitlines() if line.strip()), "")
+    return "," in first or ";" in first or "\t" in first
 
 
 def sha256_hex(data: bytes) -> str:

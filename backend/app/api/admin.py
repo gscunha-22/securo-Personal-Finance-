@@ -17,6 +17,7 @@ from app.schemas.admin import (
     AppSettingUpdate,
 )
 from app.services import admin_service
+from app.core.privacy import registration_allowed
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -206,9 +207,6 @@ async def date_format(
     display currency. Month names always follow the user's app language."""
     fmt = await admin_service.get_date_format(session)
     return {"format": fmt}
-
-
-from app.core.privacy import registration_allowed
 
 
 async def check_registration_enabled(

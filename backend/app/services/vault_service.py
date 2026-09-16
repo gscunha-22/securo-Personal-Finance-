@@ -1,5 +1,4 @@
 import uuid
-from datetime import date
 from decimal import Decimal
 from typing import Optional
 
@@ -8,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
-from app.core.privacy import sanitize_error
 from app.models.account import Account
 from app.models.processing_job import ProcessingJob
 from app.models.transaction import Transaction
@@ -474,7 +472,7 @@ async def _post_candidate(
     )
     session.add(txn)
     await session.flush()
-        await stamp_primary_amount(session, user_id, txn)
+    await stamp_primary_amount(session, user_id, txn)
     return txn
 
 

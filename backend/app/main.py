@@ -43,6 +43,7 @@ from app.api.transactions import router as transactions_router
 from app.api.two_factor import router as two_factor_router
 from app.api.user_lookup import router as user_lookup_router
 from app.api.workspaces import router as workspaces_router
+from app.api.admin import router as admin_router, check_registration_enabled
 from app.api.intelligence import router as intelligence_router
 from app.core.privacy import SecurityHeadersMiddleware
 from app.core.auth import fastapi_users

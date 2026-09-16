@@ -30,7 +30,7 @@ from app.services.debt_service import (
 )
 from app.models.audit import AuditEvent, AppNotification
 from app.models.processing_job import ProcessingJob
-from app.models.vault import ImportCandidate, SourceConnection, VaultDocument
+from app.models.vault import SourceConnection, VaultDocument
 from sqlalchemy import select
 
 upload_rate_limit = RateLimiter(max_requests=20, window_seconds=60)
