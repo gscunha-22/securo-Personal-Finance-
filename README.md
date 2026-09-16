@@ -45,9 +45,10 @@ Open [http://localhost:3000](http://localhost:3000) and create an account. That'
 
 - Multi-account management with running balances
 - Transaction management with search, filters, and CSV export
-- File import (OFX, QIF, CAMT, CSV)
+- File import (OFX, QIF, CAMT, CSV) with review-before-ledger for vault uploads
 - Auto-categorization rules engine
-- Recurring transactions and budgets
+- Document vault, human review queue, debts, and read-only Gmail/Sheets/Outlook adapters
+- Recurring transactions and budgets (new recurrences stay suggestions until you opt in to auto-generate)
 - Goals and savings targets with progress tracking
 - Asset management with valuation tracking and growth rules
 - Reports: Net Worth and Income vs Expenses with category sparklines
@@ -208,6 +209,10 @@ AGENTS_BUILTIN_MCP_URL=http://127.0.0.1:8765/mcp
 ```
 
 Without that server the agents still chat, but they have no tools and cannot read your data. The backend log says which MCP server it failed to reach.
+
+## Private instance
+
+For a single-owner deploy set `PRIVATE_INSTANCE=true`. Public registration stops after the first account. Vault originals are immutable (SHA-256, magic MIME). Extracted rows stay unselected until you approve them. Gmail/Outlook/Sheets adapters are read-only. Backup and restore scripts live in `scripts/`. Operational notes: [docs/private-instance.md](docs/private-instance.md). Readiness: [docs/readiness-report.md](docs/readiness-report.md).
 
 ## Tech Stack
 

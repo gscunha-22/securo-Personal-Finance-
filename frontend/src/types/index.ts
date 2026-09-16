@@ -722,9 +722,10 @@ export interface VaultDocument {
   origin: string
   filename: string
   mime: string
-  sha256: string
-  byte_size: number
-  created_at: string
+    sha256: string
+    byte_size: number
+    interpretation_version?: number
+    created_at: string
 }
 
 export interface ImportCandidate {

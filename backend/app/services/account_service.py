@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
 
 from app.models.account import Account
+from app.core.account_kinds import is_liability_type
 from app.models.bank_connection import BankConnection
 from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
@@ -165,7 +166,7 @@ def serialize_account(
     # Connected CC: provider stores positive for debt → negate.
     # Manual accounts: transaction math already gives correct sign.
     if acc.connection_id:
-        resolved_balance = float(acc.balance) * (-1 if acc.type == "credit_card" else 1)
+        resolved_balance = float(acc.balance) * (-1 if is_liability_type(acc.type) else 1)
     else:
         resolved_balance = float(current_balance or 0)
 
@@ -1084,7 +1085,7 @@ async def get_account_balance_history(
     if not date_to:
         date_to = today
 
-    sign = -1.0 if (account.type == "credit_card" and account.connection_id) else 1.0
+    sign = -1.0 if (is_liability_type(account.type) and account.connection_id) else 1.0
 
     series = await _account_daily_balance_series(session, account_id, date_from, date_to, account.currency)
 

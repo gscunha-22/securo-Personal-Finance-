@@ -24,6 +24,7 @@ const TYPE_LABELS: Record<string, string> = {
   checking: 'accounts.typeChecking',
   savings: 'accounts.typeSavings',
   credit_card: 'accounts.typeCreditCard',
+  loan: 'accounts.typeLoan',
   investment: 'accounts.typeInvestment',
 }
 

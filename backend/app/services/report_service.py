@@ -8,6 +8,7 @@ from sqlalchemy import String, select, desc, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.account_kinds import is_liability_type
 from app.models.account import Account
 from app.models.asset import Asset
 from app.models.asset_value import AssetValue
@@ -145,7 +146,7 @@ async def _net_worth_at(
             session, Decimal(str(abs(bal))), account.currency, primary_currency, cutoff
         )
         converted_val = float(converted)
-        if account.type == "credit_card" or bal < 0:
+        if is_liability_type(account.type) or bal < 0:
             liabilities_total += converted_val
             if converted_val > 0:
                 composition.append(ReportCompositionItem(

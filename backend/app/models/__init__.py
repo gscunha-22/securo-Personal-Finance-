@@ -35,9 +35,12 @@ from app.models.reconciliation import (
 from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
 from app.models.vault import (
     ColumnMappingTemplate,
+    DocumentConflict,
     DocumentExtraction,
+    DocumentVersion,
     EmailMessage,
     ExtractedField,
+    HumanDecision,
     ImportCandidate,
     SourceConnection,
     StoredObject,
@@ -106,6 +109,9 @@ __all__ = [
     "VaultDocument",
     "EmailMessage",
     "DocumentExtraction",
+    "DocumentVersion",
+    "HumanDecision",
+    "DocumentConflict",
     "ExtractedField",
     "ImportCandidate",
     "ColumnMappingTemplate",

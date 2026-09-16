@@ -99,6 +99,7 @@ def test_cash_account_type_mapping():
     assert _map_cash_account_type("CACC") == "checking"
     assert _map_cash_account_type("SVGS") == "savings"
     assert _map_cash_account_type("CARD") == "credit_card"
+    assert _map_cash_account_type("LOAN") == "loan"
     assert _map_cash_account_type(None) == "checking"
     assert _map_cash_account_type("UNKNOWN_TYPE") == "checking"
 

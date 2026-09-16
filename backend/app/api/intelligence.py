@@ -64,6 +64,7 @@ class DocumentRead(BaseModel):
     mime: str
     sha256: str
     byte_size: int
+    interpretation_version: int
     created_at: datetime
 
 
@@ -145,6 +146,8 @@ class AiSuggestBody(BaseModel):
 
 def _document_read(doc: VaultDocument) -> DocumentRead:
     stored = doc.stored_object
+    versions = getattr(doc, "versions", None) or []
+    latest = max((v.version_number for v in versions), default=1)
     return DocumentRead(
         id=doc.id,
         document_type=doc.document_type,
@@ -154,6 +157,7 @@ def _document_read(doc: VaultDocument) -> DocumentRead:
         mime=stored.detected_mime,
         sha256=stored.sha256,
         byte_size=stored.byte_size,
+        interpretation_version=latest,
         created_at=doc.created_at,
     )
 
