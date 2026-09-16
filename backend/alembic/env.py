@@ -1,23 +1,20 @@
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.pool import NullPool
 
 from alembic import context
 
-from app.core.config import get_settings
-from app.core.database import Base
+from app.core.database import Base, alembic_database_url, create_engine_from_url
 from app.models import *  # noqa: F401,F403
 # Agents module models (always loaded so migrations stay in sync; the
 # feature itself is gated at runtime by AGENTS_ENABLED).
 from app.agents.models import *  # noqa: F401,F403
 
 config = context.config
-settings = get_settings()
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", alembic_database_url().replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -46,10 +43,9 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+    connectable = create_engine_from_url(
+        alembic_database_url(),
+        poolclass=NullPool,
     )
 
     async with connectable.connect() as connection:

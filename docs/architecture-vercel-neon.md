@@ -36,7 +36,7 @@ Verificado neste tree:
 
 | Peça | Onde está hoje |
 |---|---|
-| SPA Vite/React | `frontend/`; nginx faz `proxy_pass` de `/api/` (`frontend/default.conf.template`) |
+| SPA Vite/React | `frontend/`; nginx `proxy_pass` `/api/` localmente; `frontend/vercel.ts` no deploy Vercel |
 | API | `uvicorn app.main:app` em `docker-compose.yml`; CORS = `FRONTEND_URL` |
 | Pronto | `GET /api/ready` exige Postgres, Redis e storage |
 | Jobs | Celery worker + beat; `processing_jobs` é a fonte da verdade |
@@ -101,7 +101,9 @@ sequenceDiagram
 ### Vercel (fronteira)
 
 - Build estático de `frontend/` (`npm run build`).
-- `vercel.json`: SPA fallback + rewrite `/api/:path*` para o origin da API.
+- `vercel.ts` (Root Directory = `frontend`): SPA fallback + rewrite
+  `/api/:path*` para `API_ORIGIN` (origin persistente do FastAPI).
+  `vercel.json` estático não interpola o origin por ambiente.
 - Preview deployments por PR, com `FRONTEND_URL` do preview.
 - Domínio de produção customizado (não depender de `*.vercel.app` para
   OAuth nem para passkeys).
@@ -164,14 +166,31 @@ imagem — não na Vercel.
 | Variável | Valor alvo |
 |---|---|
 | `FRONTEND_URL` | `https://<domínio-produção>` |
-| `DATABASE_URL` | `postgresql+asyncpg://...neon.tech/neondb?ssl=require` (pooled na API) |
+| `API_ORIGIN` | Origin persistente do FastAPI, sem barra final (env da Vercel) |
+| `DATABASE_URL` | `postgresql+asyncpg://...-pooler...neon.tech/neondb?ssl=require` (API/worker) |
+| `DATABASE_URL_DIRECT` | Endpoint Neon **direto** (Alembic, `pg_dump`, restore) |
 | `REDIS_URL` | Upstash ou Redis persistente |
 | `STORAGE_PROVIDER` | `s3` |
 | `STORAGE_S3_*` | Neon Object Storage ou S3/R2 |
+| `TRUSTED_PROXY_HOPS` | `1` quando a API está atrás do rewrite da Vercel |
 | `PRIVATE_INSTANCE` | `true` no deploy do dono |
 | OAuth Google/Microsoft | redirect URIs do domínio de produção |
 
-`.env.example` já lista as chaves vazias. Segredos não entram no git.
+`.env.example` (raiz e `backend/`) lista as chaves vazias. Segredos não entram no git.
+
+## Suporte no código (este repositório)
+
+Já no tree, para o operador ligar os três planos sem reescrever o app:
+
+| Peça | Onde |
+|---|---|
+| Engine asyncpg + Neon | `create_engine_from_url` em `backend/app/core/database.py`: SSL em `*.neon.tech`, `statement_cache_size=0` no host `-pooler`, `pool_pre_ping` / `pool_recycle=300` |
+| Alembic no endpoint direto | `DATABASE_URL_DIRECT`; se vazio e o host for pooler, deriva o compute tirando `-pooler` |
+| Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
+| SPA Vercel | `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js) |
+| Vite local | `frontend/vite.config.ts` continua a fazer proxy de `/api` para `BACKEND_URL` |
+
+Nada disto provisiona Neon nem publica na Vercel. Sem `API_ORIGIN` o build da Vercel falha de propósito.
 
 ## Preview e CI
 
@@ -223,11 +242,10 @@ flowchart LR
 
 ## Ordem de adoção (quando for para implementar)
 
-1. Neon projeto + `pgvector` + `DATABASE_URL` no compute persistente;
-   Alembic no endpoint direto.
+1. Neon projeto + `pgvector` + `DATABASE_URL` (pooler) e `DATABASE_URL_DIRECT` no compute persistente; `alembic upgrade head` no boot.
 2. `STORAGE_PROVIDER=s3` no cofre; `/api/ready` verde.
 3. Redis gerenciado; worker e beat no mesmo compute que a API.
-4. SPA na Vercel com rewrite `/api`; `FRONTEND_URL` e CORS.
+4. SPA na Vercel (`frontend/` como Root Directory, `API_ORIGIN`, `FRONTEND_URL` e CORS). `TRUSTED_PROXY_HOPS=1`.
 5. Domínio custom + OAuth redirects + `PRIVATE_INSTANCE=true`.
 6. Branch Neon + preview Vercel por PR (opcional, depois do happy path).
 
@@ -235,8 +253,9 @@ Nenhum destes passos reescreve o livro, a fila de revisão ou os parsers.
 
 ## Critério de “arquitetura aplicada”
 
-Esta decisão está **definida**. Só está **aplicada** quando existir um
-deploy real com: SPA na Vercel, Postgres no Neon, API+worker persistentes,
-storage S3, `/api/ready` = `ready`, e um upload → revisão → aprovação
-sem pré-seleção. Até lá o Compose/Helm local continua o ambiente de
-desenvolvimento.
+O **suporte no código** (engine Neon, Alembic direto, `vercel.ts`) já existe.
+A decisão só está **aplicada em produção** quando existir um deploy real com:
+SPA na Vercel, Postgres no Neon, API+worker persistentes, storage S3,
+`/api/ready` = `ready`, e um upload → revisão → aprovação sem pré-seleção.
+Até lá o Compose/Helm local continua o ambiente de desenvolvimento. Não há
+git-deploy automático; o operador publica.
