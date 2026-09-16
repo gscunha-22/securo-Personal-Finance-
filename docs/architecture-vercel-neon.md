@@ -136,9 +136,9 @@ o alvo: o código fala S3, não a API da Vercel.
 
 Não usar Neon Auth. Users, TOTP, passkeys, OIDC e CSRF já existem.
 
-Projeto Neon **deste operador** (schema vazio até o compute persistente
-correr `alembic upgrade head`; Auth **não** ligado; senhas só no console
-Neon / secrets do compute, nunca no git):
+Projeto Neon **deste operador** (Auth **não** ligado; senhas só no
+console Neon / secrets do compute, nunca no git). Schema já em Alembic
+`092`. Object Storage beta privado provisionado na mesma branch:
 
 | Campo | Valor |
 |---|---|
@@ -151,6 +151,15 @@ Neon / secrets do compute, nunca no git):
 | Branch | `main` (`br-autumn-brook-b5clfx9c`) |
 | Host direto | `ep-green-lab-b52gwozb.c-7.us-east-2.aws.neon.tech` |
 | Host pooled | `ep-green-lab-b52gwozb-pooler.c-7.us-east-2.aws.neon.tech` |
+| Bucket S3 | `securo-vault` (privado) |
+| Endpoint S3 | `https://br-autumn-brook-b5clfx9c.storage.c-7.us-east-2.aws.neon.tech` |
+| Access Key ID | `token_id` da credencial `securo-vault-api` (console Neon) |
+
+Homologação nesta sessão: `/api/ready` = `ready` (Postgres Neon + Redis
+local + S3 Neon); upload CSV → candidato `selected=false` → aprovação
+posta 1 transação; download autenticado 200 / anónimo 401; plano de
+renegociação com 1 dívida. Redis gerido e compute público (Fly/Render/
+Railway/Helm) + SPA Vercel com `API_ORIGIN` ainda faltam para produção.
 
 Os projetos `connector-command-center` e `kimi-memory` **não** são desta
 aplicação; não reutilizar as strings deles.
