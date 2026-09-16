@@ -1,8 +1,12 @@
 import hashlib
 import hmac
 import io
+import shutil
+import subprocess
+import tempfile
 import zipfile
 import xml.etree.ElementTree as ET
+from collections import Counter
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -280,3 +284,81 @@ def _rows_from_pdf_text(text: str) -> list[dict]:
             }
         )
     return rows
+
+
+def ocr_image(data: bytes) -> tuple[str, str]:
+    """Run Tesseract when present. Empty text if OCR cannot run; never invents facts."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return "", "ocr_unavailable"
+    try:
+        Image.open(io.BytesIO(data)).verify()
+    except Exception:
+        return "", "ocr_unreadable"
+    binary = shutil.which("tesseract")
+    if not binary:
+        return "", "ocr_unavailable"
+    suffix = ".png"
+    if data.startswith(b"\xff\xd8\xff"):
+        suffix = ".jpg"
+    elif data[:6] in (b"GIF87a", b"GIF89a"):
+        suffix = ".gif"
+    with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
+        tmp.write(data)
+        tmp.flush()
+        try:
+            proc = subprocess.run(
+                [binary, tmp.name, "stdout", "-l", "eng+por"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            return "", "ocr_unavailable"
+    return (proc.stdout or "").strip(), "ocr_tesseract"
+
+
+def _printed_total(raw_text: str) -> Decimal | None:
+    """Pick an explicit printed total. Missing totals stay None — never zero."""
+    import re
+
+    if not raw_text:
+        return None
+    amount_re = r"(-?\d{1,3}(?:[.\s]\d{3})*,\d{2}|-?\d+\.\d{2})"
+    label_re = re.compile(
+        rf"(?:total|saldo|amount due|valor total|total amount)[^\d\-]*{amount_re}",
+        re.IGNORECASE,
+    )
+    matches = label_re.findall(raw_text)
+    if not matches:
+        return None
+    try:
+        return abs(_as_decimal(matches[-1]))
+    except ValueError:
+        return None
+
+
+def parse_integrity(rows: list[dict], raw_text: str) -> dict:
+    """Compare the sum of extracted parts with a printed total, if one exists."""
+    computed = sum((row["amount"] for row in rows), Decimal("0.00"))
+    printed = _printed_total(raw_text)
+    if printed is None:
+        return {"status": "not_applicable", "printed_total": None, "computed_total": computed}
+    status = "ok" if abs(printed - computed) <= Decimal("0.01") else "conflict"
+    return {"status": status, "printed_total": printed, "computed_total": computed}
+
+
+def suggest_recurrence(rows: list[dict]) -> dict | None:
+    """Flag repeating descriptions as unconfirmed suggestions. Never materializes bills."""
+    counts = Counter((row["description"] or "").strip().lower() for row in rows if row.get("description"))
+    repeats = [desc for desc, n in counts.items() if desc and n >= 2]
+    if not repeats:
+        return None
+    return {
+        "kind": "inferred",
+        "confirmed": False,
+        "descriptions": repeats[:8],
+        "rationale": "Repeating descriptions were found. Confirm before generating occurrences.",
+    }

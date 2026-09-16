@@ -60,6 +60,7 @@ async def test_csv_upload_extracts_unselected_candidates(
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["status"] == "waiting_review"
+    assert body["interpretation_version"] == 1
     fields = await client.get(f"/api/documents/{body['id']}/fields", headers=auth_headers)
     assert fields.status_code == 200
     assert any(item["locator"] for item in fields.json())
@@ -302,3 +303,92 @@ async def test_document_file_is_not_public(client: AsyncClient, auth_headers, te
     allowed = await client.get(f"/api/documents/{doc_id}/file", headers=auth_headers)
     assert allowed.status_code == 200
     assert allowed.headers.get("Cache-Control") == "private, no-store"
+
+
+TINY_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00"
+    b"\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+REPEAT_CSV = (
+    "date,description,amount,type\n"
+    "2026-01-10,Grocery market,42.50,debit\n"
+    "2026-02-10,Grocery market,40.00,debit\n"
+).encode("utf-8")
+
+
+@pytest.mark.asyncio
+async def test_image_without_ocr_does_not_invent_amounts(
+    client: AsyncClient, auth_headers, vault_dir
+):
+    response = await client.post(
+        "/api/documents",
+        headers=auth_headers,
+        files={"file": ("receipt.png", TINY_PNG, "image/png")},
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "needs_ocr"
+    assert body["interpretation_version"] == 1
+    candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    assert candidates == []
+
+
+def test_parse_integrity_conflict_does_not_invent_a_zero():
+    from decimal import Decimal
+
+    from app.services.extraction import parse_integrity
+
+    rows = [{"amount": Decimal("10.00")}, {"amount": Decimal("5.00")}]
+    conflict = parse_integrity(rows, "Total 20.00")
+    assert conflict["status"] == "conflict"
+    assert conflict["printed_total"] == Decimal("20.00")
+    assert conflict["computed_total"] == Decimal("15.00")
+    missing = parse_integrity(rows, "no printed total here")
+    assert missing["status"] == "not_applicable"
+    assert missing["printed_total"] is None
+
+
+@pytest.mark.asyncio
+async def test_inferred_recurrence_is_not_materialized(
+    client: AsyncClient, auth_headers, test_account, vault_dir, session: AsyncSession
+):
+    from uuid import UUID
+
+    from sqlalchemy import func, select
+
+    from app.models.recurring_transaction import RecurringTransaction
+    from app.models.vault import HumanDecision, ImportCandidate
+
+    response = await client.post(
+        "/api/documents",
+        headers=auth_headers,
+        files={"file": ("repeat.csv", REPEAT_CSV, "text/csv")},
+        data={"account_id": str(test_account.id)},
+    )
+    assert response.status_code == 201, response.text
+    candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    assert len(candidates) == 2
+    assert all(c["selected"] is False for c in candidates)
+    assert any("not confirmed" in (c.get("suggestion_rationale") or "") for c in candidates)
+
+    billed = await session.scalar(select(func.count()).select_from(RecurringTransaction))
+    assert int(billed or 0) == 0
+
+    decision = await client.post(
+        "/api/review/decisions",
+        headers=auth_headers,
+        json={
+            "candidate_ids": [candidates[0]["id"]],
+            "decision": "approve",
+            "account_id": str(test_account.id),
+        },
+    )
+    assert decision.status_code == 200
+    await session.expire_all()
+    recorded = await session.scalar(select(func.count()).select_from(HumanDecision))
+    assert int(recorded or 0) >= 1
+    stored = await session.get(ImportCandidate, UUID(candidates[0]["id"]))
+    assert stored is not None
+    assert stored.extra and stored.extra.get("recurrence_suggestion", {}).get("confirmed") is False

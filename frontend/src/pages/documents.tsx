@@ -80,6 +80,7 @@ export default function DocumentsPage() {
               <p className="text-sm font-medium">{doc.filename}</p>
               <p className="text-xs text-muted-foreground">
                 {doc.document_type} · {doc.status} · {doc.mime}
+                {doc.interpretation_version ? ` · v${doc.interpretation_version}` : ''}
               </p>
             </div>
             <Link to="/review" className="text-sm text-primary">{t('intelligence.review')}</Link>

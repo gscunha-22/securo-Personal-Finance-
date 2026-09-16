@@ -132,6 +132,9 @@ class VaultDocument(Base):
     candidates: Mapped[list["ImportCandidate"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+    versions: Mapped[list["DocumentVersion"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 class EmailMessage(Base):
@@ -268,6 +271,82 @@ class ImportCandidate(Base):
     )
 
     document: Mapped["VaultDocument"] = relationship(back_populates="candidates")
+
+
+class DocumentVersion(Base):
+    """One interpretation of an immutable original. Re-extraction adds a version."""
+
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "version_number", name="uq_document_version_number"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vault_documents.id", ondelete="CASCADE"), index=True
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    extraction_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("document_extractions.id", ondelete="SET NULL"), nullable=True
+    )
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    interpreter: Mapped[str] = mapped_column(String(40), default="deterministic")
+    status: Mapped[str] = mapped_column(String(40), default="completed")
+    parse_integrity: Mapped[str] = mapped_column(String(40), default="not_applicable")
+    printed_total: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
+    computed_total: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    document: Mapped["VaultDocument"] = relationship(back_populates="versions")
+
+
+class HumanDecision(Base):
+    """Review action. Revert posts a new row; nothing here is deleted."""
+
+    __tablename__ = "human_decisions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_candidates.id", ondelete="CASCADE"), index=True
+    )
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vault_documents.id", ondelete="CASCADE")
+    )
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class DocumentConflict(Base):
+    """A disagreement that must stay visible until a human resolves it."""
+
+    __tablename__ = "document_conflicts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vault_documents.id", ondelete="CASCADE"), index=True
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("document_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ColumnMappingTemplate(Base):

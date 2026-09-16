@@ -23,20 +23,29 @@ UI copy or code from that product are copied here.
 - AI suggestion schema accepts category/payee/description/rationale/confidence
   and **rejects** invented amounts or dates.
 - Dashboard debt total is `None` when there are no debts, never a fake zero.
-- Recurring auto-generation is not flipped globally; inferred document rows
-  stay in the review queue.
+- Recurring auto-generation is not flipped globally for existing bills. The
+  recurring form starts with auto-generate **off** so a newly typed bill stays
+  a suggestion until confirmed. Inferred document rows never create
+  `recurring_transactions`.
+- Loan accounts are first-class (`loan`). Enable Banking `LOAN` and Pluggy
+  `LOAN` map to that type and count as liabilities.
+- Interpretation versions live in `document_versions`. Parse-integrity
+  conflicts are stored and sent to review instead of aborting the job.
 - Secrets stay in environment variables. `.env.example` lists empty keys.
 
 ## Domain added
 
-- Vault: `stored_objects`, `vault_documents`, `document_extractions`,
-  `extracted_fields`, `import_candidates`
+- Vault: `stored_objects`, `vault_documents`, `document_versions`,
+  `document_extractions`, `extracted_fields`, `import_candidates`,
+  `human_decisions`, `document_conflicts`
 - Sources: `source_connections`, `sync_cursors`, `email_messages`
 - Jobs: `processing_jobs`, `job_attempts`
 - Audit: `audit_events`, `app_notifications`
-- Debts: `debts`, `debt_installments`, `debt_payments`
+- Debts: `debts`, `debt_installments`, `debt_payments`, plus renegotiation
+  cash/offers
 
-Migration: `backend/alembic/versions/090_intelligence_vault.py`.
+Migrations: `090_intelligence_vault.py`, `091_debt_renegotiation.py`,
+`092_document_interpretation.py`.
 
 ## UI
 
@@ -65,8 +74,12 @@ API is implemented.
 
 - Behavioral coverage: `backend/tests/test_intelligence.py`
 - Frontend: module/nav catalog, locales, page empty states
-- CI keeps ruff/ty/pytest, Alembic chain, eslint/tsc/vitest, helm
-- Extra: gitleaks scan on the repository
+- E2E: Playwright Chromium in `e2e/` (login, upload, unselected review, approve, reload, retry, unauthenticated file download)
+- CI: ruff/ty/pytest, Alembic chain, `alembic upgrade head` on service Postgres, eslint/tsc/vitest, helm, gitleaks, Playwright
+
+## Baseline (this revision)
+
+Recorded after implementing remaining spec gaps. Full pytest of the historical suite is run in CI; local evidence below is lint plus the intelligence slice.
 
 Do not auto-deploy. Operators review staging before treating extracted rows
-as ledger facts.
+as ledger facts. See `docs/readiness-report.md`.

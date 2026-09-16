@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,8 +11,11 @@ from app.models.account import Account
 from app.models.processing_job import ProcessingJob
 from app.models.transaction import Transaction
 from app.models.vault import (
+    DocumentConflict,
     DocumentExtraction,
+    DocumentVersion,
     ExtractedField,
+    HumanDecision,
     ImportCandidate,
     StoredObject,
     VaultDocument,
@@ -24,7 +27,10 @@ from app.services.extraction import (
     detect_mime,
     extract_structured_rows,
     fingerprint,
+    ocr_image,
+    parse_integrity,
     sha256_hex,
+    suggest_recurrence,
 )
 from app.services.fx_rate_service import stamp_primary_amount
 
@@ -143,8 +149,8 @@ async def upload_document(
     )
     await session.commit()
     await process_extraction_job(session, job.id)
-    await session.refresh(document)
-    return document
+    loaded = await get_document(session, workspace_id, document.id)
+    return loaded or document
 
 
 async def process_extraction_job(session: AsyncSession, job_id: uuid.UUID) -> ProcessingJob:
@@ -176,36 +182,68 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
     storage = get_storage_provider()
     data = await storage.download(document.stored_object.storage_key)
     mime = document.stored_object.detected_mime
-    if mime in IMAGE_MIMES:
-        document.status = "needs_ocr"
-        document.document_type = "receipt"
-        extraction = DocumentExtraction(
-            document_id=document.id,
-            workspace_id=document.workspace_id,
-            method="pending_ocr",
-            status="waiting_review",
-            document_type_guess="receipt",
-            raw_text=None,
-        )
-        session.add(extraction)
-        await session.flush()
-        return document
+    filename = document.stored_object.original_filename
 
-    rows, method, raw_text = extract_structured_rows(
-        data, mime, document.stored_object.original_filename
-    )
-    doc_type = classify_document(document.stored_object.original_filename, mime, raw_text)
+    rows: list[dict] = []
+    method = "unsupported"
+    raw_text = ""
+    if mime in IMAGE_MIMES:
+        raw_text, method = ocr_image(data)
+        if not raw_text:
+            document.status = "needs_ocr"
+            document.document_type = "receipt"
+            extraction = await _add_extraction(
+                session,
+                document,
+                method=method or "pending_ocr",
+                status="waiting_review",
+                doc_type="receipt",
+                raw_text=None,
+            )
+            await _add_version(
+                session,
+                document,
+                extraction,
+                interpreter="ocr",
+                status="waiting_review",
+                integrity={"status": "not_applicable", "printed_total": None, "computed_total": Decimal("0.00")},
+            )
+            return document
+        rows = _rows_from_ocr_text(raw_text)
+    elif mime == "application/pdf":
+        rows, method, raw_text = extract_structured_rows(data, mime, filename)
+        if not (raw_text or "").strip() and not rows:
+            document.status = "needs_ocr"
+            extraction = await _add_extraction(
+                session,
+                document,
+                method="pending_ocr",
+                status="waiting_review",
+                doc_type="unknown",
+                raw_text=None,
+            )
+            await _add_version(
+                session,
+                document,
+                extraction,
+                interpreter="ocr",
+                status="waiting_review",
+                integrity={"status": "not_applicable", "printed_total": None, "computed_total": Decimal("0.00")},
+            )
+            return document
+    else:
+        rows, method, raw_text = extract_structured_rows(data, mime, filename)
+
+    doc_type = classify_document(filename, mime, raw_text)
     document.document_type = doc_type
-    extraction = DocumentExtraction(
-        document_id=document.id,
-        workspace_id=document.workspace_id,
+    extraction = await _add_extraction(
+        session,
+        document,
         method=method,
         status="completed",
-        document_type_guess=doc_type,
+        doc_type=doc_type,
         raw_text=raw_text[:20000] if raw_text else None,
     )
-    session.add(extraction)
-    await session.flush()
     session.add(
         ExtractedField(
             extraction_id=extraction.id,
@@ -216,6 +254,29 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
             confidence=Decimal("0.8000") if doc_type != "unknown" else Decimal("0.2000"),
         )
     )
+    integrity = parse_integrity(rows, raw_text)
+    version = await _add_version(
+        session,
+        document,
+        extraction,
+        interpreter="ocr" if method.startswith("ocr") else "deterministic",
+        status="completed",
+        integrity=integrity,
+    )
+    if integrity["status"] == "conflict":
+        session.add(
+            DocumentConflict(
+                document_id=document.id,
+                workspace_id=document.workspace_id,
+                version_id=version.id,
+                kind="parse_integrity",
+                summary=(
+                    f"Printed total {integrity['printed_total']} does not match "
+                    f"sum of parts {integrity['computed_total']}"
+                ),
+            )
+        )
+    recurrence = suggest_recurrence(rows)
     duplicates = await _find_duplicates(session, document.workspace_id, document.account_id, rows)
     for row in rows:
         key = fingerprint(
@@ -237,6 +298,12 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
         if existing:
             continue
         suggestion = suggest_category(row["description"], row.get("payee"))
+        extra = {}
+        if recurrence:
+            extra["recurrence_suggestion"] = recurrence
+            suggestion["rationale"] = (
+                f"{suggestion['rationale']} Recurrence inferred, not confirmed."
+            )
         candidate = ImportCandidate(
             workspace_id=document.workspace_id,
             document_id=document.id,
@@ -261,6 +328,7 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
             suggestion_rationale=suggestion["rationale"],
             suggestion_confidence=suggestion["confidence"],
             idempotency_key=key,
+            extra=extra or None,
         )
         session.add(candidate)
         session.add(
@@ -275,6 +343,62 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
         )
     document.status = "waiting_review"
     return document
+
+
+async def _add_extraction(
+    session: AsyncSession,
+    document: VaultDocument,
+    *,
+    method: str,
+    status: str,
+    doc_type: str,
+    raw_text: str | None,
+) -> DocumentExtraction:
+    extraction = DocumentExtraction(
+        document_id=document.id,
+        workspace_id=document.workspace_id,
+        method=method,
+        status=status,
+        document_type_guess=doc_type,
+        raw_text=raw_text,
+    )
+    session.add(extraction)
+    await session.flush()
+    return extraction
+
+
+async def _add_version(
+    session: AsyncSession,
+    document: VaultDocument,
+    extraction: DocumentExtraction,
+    *,
+    interpreter: str,
+    status: str,
+    integrity: dict,
+) -> DocumentVersion:
+    current = await session.scalar(
+        select(func.max(DocumentVersion.version_number)).where(DocumentVersion.document_id == document.id)
+    )
+    version = DocumentVersion(
+        document_id=document.id,
+        workspace_id=document.workspace_id,
+        extraction_id=extraction.id,
+        version_number=int(current or 0) + 1,
+        interpreter=interpreter,
+        status=status,
+        parse_integrity=integrity["status"],
+        printed_total=integrity.get("printed_total"),
+        computed_total=integrity.get("computed_total"),
+    )
+    session.add(version)
+    await session.flush()
+    return version
+
+
+def _rows_from_ocr_text(text: str) -> list[dict]:
+    from app.services.extraction import _rows_from_pdf_text
+
+    return _rows_from_pdf_text(text)
 
 
 def suggest_category(description: str, payee: Optional[str]) -> dict:
@@ -332,7 +456,7 @@ async def list_documents(session: AsyncSession, workspace_id: uuid.UUID) -> list
     result = await session.execute(
         select(VaultDocument)
         .where(VaultDocument.workspace_id == workspace_id)
-        .options(selectinload(VaultDocument.stored_object))
+        .options(selectinload(VaultDocument.stored_object), selectinload(VaultDocument.versions))
         .order_by(VaultDocument.created_at.desc())
         .limit(200)
     )
@@ -349,6 +473,7 @@ async def get_document(
             selectinload(VaultDocument.stored_object),
             selectinload(VaultDocument.extractions).selectinload(DocumentExtraction.fields),
             selectinload(VaultDocument.candidates),
+            selectinload(VaultDocument.versions),
         )
     )
 
@@ -400,6 +525,15 @@ async def decide_candidates(
         if decision == "defer":
             candidate.status = "deferred"
             candidate.selected = False
+            session.add(
+                HumanDecision(
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    candidate_id=candidate.id,
+                    document_id=candidate.document_id,
+                    decision="defer",
+                )
+            )
             continue
         if decision == "reject":
             candidate.status = "rejected"
@@ -408,12 +542,30 @@ async def decide_candidates(
             from datetime import datetime, timezone
 
             candidate.decided_at = datetime.now(timezone.utc)
+            session.add(
+                HumanDecision(
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    candidate_id=candidate.id,
+                    document_id=candidate.document_id,
+                    decision="reject",
+                )
+            )
             continue
         account = candidate.account_id or account_id
         if not account:
             raise ValueError("An account is required before approving candidates")
         if candidate.posted_transaction_id:
             posted += 1
+            session.add(
+                HumanDecision(
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    candidate_id=candidate.id,
+                    document_id=candidate.document_id,
+                    decision="approve",
+                )
+            )
             continue
         txn = await _post_candidate(session, candidate, account, user_id, workspace_id)
         candidate.posted_transaction_id = txn.id
@@ -424,6 +576,15 @@ async def decide_candidates(
 
         candidate.decided_at = datetime.now(timezone.utc)
         posted += 1
+        session.add(
+            HumanDecision(
+                workspace_id=workspace_id,
+                user_id=user_id,
+                candidate_id=candidate.id,
+                document_id=candidate.document_id,
+                decision="approve",
+            )
+        )
     await audit_service.record(
         session,
         workspace_id=workspace_id,
