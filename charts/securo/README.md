@@ -4,9 +4,9 @@
 
 ## Features
 
-- **Complete Application Stack**: Deploys the Next.js React frontend and FastAPI backend, fully supporting all features including Open Banking integrations, OIDC authentication, and AI financial agents.
-- **Asynchronous Task Scheduler**: Runs Celery workers and a Celery beat singleton for automated background processing (such as bank syncs, recurring transactions, and exchange rate updates).
-- **Databases**: Easily configure connections to your external PostgreSQL and Redis instances.
+- **Complete Application Stack**: Deploys the Vite/React SPA (nginx) and FastAPI backend, fully supporting all features including Open Banking integrations, OIDC authentication, and AI financial agents. This is not a Next.js rewrite.
+- **Asynchronous Task Scheduler**: Runs Celery workers and a Celery beat singleton for automated background processing (such as bank syncs, recurring transactions, document extraction, and exchange rate updates).
+- **Databases**: Easily configure connections to your external PostgreSQL (including Neon pooled + direct URLs) and Redis instances. Object storage is S3-compatible (`storageProvider: s3`); Vercel Blob is not used.
 - **Gateway API & Ingress**: Native support for standard Kubernetes Ingress or the modern Kubernetes Gateway API (`HTTPRoute`).
 
 ## Prerequisites
@@ -52,8 +52,9 @@ global:
   existingSecret: "my-securo-secrets"
 ```
 
-The secret must contain the corresponding keys (e.g., `secretKey`, `databaseUrl`, `databaseUrlDirect`, `agentsOpenaiApiKey`).
+The secret must contain the corresponding keys (e.g., `SECRET_KEY`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, `STORAGE_S3_ACCESS_KEY`, `AGENTS_OPENAI_API_KEY` — Helm maps `camelCase` values.yaml keys to `UPPER_SNAKE_CASE`).
 For Neon, `databaseUrl` is the pooled (`-pooler`) URL and `databaseUrlDirect` is the compute endpoint used by the migration Job.
+For an S3 vault, set `config.storageProvider` to `s3` and put access keys in the Secret (or `existingSecret`). Then disable `persistence.attachments` so originals are not expected on a local volume.
 
 ## Uninstalling the Chart
 

@@ -43,6 +43,11 @@ secret:
   agentsAnthropicApiKey: ""
   agentsOpenaiCompatApiKey: ""
 
+  # S3-compatible vault (Neon Object Storage, R2, MinIO). Empty keys are
+  # omitted from the generated Secret; use existingSecret in production.
+  storageS3AccessKey: ""
+  storageS3SecretKey: ""
+
 # Non-sensitive configuration
 config:
   debug: "false"
@@ -79,6 +84,16 @@ config:
   celeryResultBackend: 'redis://{{ include "securo.fullname" . }}-redis-master:6379/0'
 
   storageLocalPath: "/app/data/attachments"
+  # Cloud vault: set storageProvider to s3, fill secret.storageS3*, and
+  # typically disable persistence.attachments (originals live in the bucket).
+  storageProvider: "local"
+  storageS3Bucket: ""
+  storageS3Region: ""
+  storageS3EndpointUrl: ""
+  storageMaxDocumentSizeMb: "20"
+  privateInstance: "false"
+  # Bundled nginx, or the Vercel /api rewrite, counts as one trusted hop.
+  trustedProxyHops: "0"
   agentsKnowledgeStoragePath: "/app/data/agent_knowledge"
 
   # Agents feature

@@ -19,3 +19,4 @@ docker-compose.override.yml
 # — never commit.
 backend/data/
 backups/
+dump.rdb

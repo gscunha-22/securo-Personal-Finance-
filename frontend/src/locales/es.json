@@ -2542,6 +2542,8 @@
     "exampleLoaded": "Didactic example loaded",
     "product": "Product",
     "monthlyRate": "Effective monthly rate %",
+    "ratePercentHint": "Enter 14 for 14% a month, not 0.14.",
+    "rateLooksLikeFraction": "{{value}} looks like a decimal fraction. This field is percent: 3.99 means 3.99% a.m. Continue?",
     "cetAnnualInformed": "Stated annual CET %",
     "installment": "Installment / minimum",
     "remainingTerm": "Remaining term (months)",

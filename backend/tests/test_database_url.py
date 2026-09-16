@@ -93,6 +93,25 @@ def test_alembic_url_keeps_local_postgres(tmp_path, monkeypatch):
     assert alembic_database_url(settings) == LOCAL
 
 
+def test_helm_and_compose_expose_neon_s3_without_nextjs():
+    values = (REPO_ROOT / "charts" / "securo" / "values.yaml").read_text(encoding="utf-8")
+    assert "databaseUrlDirect" in values
+    assert "storageProvider" in values
+    assert "storageS3AccessKey" in values
+    assert "storageS3SecretKey" in values
+    assert "privateInstance" in values
+    assert "trustedProxyHops" in values
+    overlay = (REPO_ROOT / "docker-compose.neon.yml").read_text(encoding="utf-8")
+    assert "STORAGE_PROVIDER" in overlay
+    assert "DATABASE_URL_DIRECT" in overlay
+    assert "local-postgres" in overlay
+    readme = (REPO_ROOT / "charts" / "securo" / "README.md").read_text(encoding="utf-8")
+    assert "Deploys the Next.js" not in readme
+    assert "Vite" in readme
+    dockerfile = (REPO_ROOT / "backend" / "Dockerfile").read_text(encoding="utf-8")
+    assert "tesseract-ocr-por" in dockerfile
+
+
 def test_vercel_spa_rewrites_api_to_persistent_origin():
     source = (REPO_ROOT / "frontend" / "vercel.ts").read_text(encoding="utf-8")
     assert "API_ORIGIN" in source

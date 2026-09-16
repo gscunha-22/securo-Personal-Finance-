@@ -34,6 +34,7 @@ publication**, not for staging review.
 | Alembic against Postgres | CI job `alembic upgrade head` on service Postgres | met |
 | Live Google/Microsoft OAuth | Owner must create clients | pending owner |
 | Live S3 credentials | Neon bucket `securo-vault` on `us-east-2`; secrets only in console/compute env | provisioned; copy secrets to persistent compute |
+| Helm / Compose Neon overlay | `values.yaml` S3 + `docker-compose.neon.yml`; Tesseract eng+por in the API image | met (code); public compute still pending owner tokens |
 | Auto-deploy | Not performed | met (not done) |
 
 ## What was executed vs simulated
@@ -42,7 +43,7 @@ publication**, not for staging review.
 - Executed in CI (when this branch runs): ruff, ty, pytest, eslint/tsc/vitest, helm, gitleaks, Alembic chain, Alembic upgrade on Postgres, Playwright Chromium against a mocked API.
 - Simulated: live Gmail/Sheets/Outlook HTTP (adapters raise `NotConfiguredError` until consent). Playwright uses a mocked `/api` so the browser journey is real UI with synthetic data.
 - Executed against the operator Neon project: Alembic `092`, `/api/ready` with pooled Postgres + Redis + S3, CSV upload to the vault, unselected review, approve-to-ledger, debt + renegotiation plan, authenticated file download.
-- Not executed: production git-deploy, public persistent compute, Vercel SPA with `API_ORIGIN`, live OAuth consent screens, ClamAV (magic-byte + script rejection instead).
+- Not executed: production git-deploy, public persistent compute (no Fly/Render/Railway token in this environment), Vercel SPA with `API_ORIGIN` (GitHub App not installed on this repo), live OAuth consent screens, ClamAV (magic-byte + script rejection instead).
 
 ## Risks still open
 

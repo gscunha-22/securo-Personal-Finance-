@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { screen } from '@testing-library/react'
 
 import DebtsPage from '@/pages/debts'
+import { looksLikeRateFraction } from '@/lib/rate-percent'
 import { renderWithProviders, t } from '@/test/utils'
 
 const api = vi.hoisted(() => {
@@ -95,5 +96,12 @@ describe('DebtsPage', () => {
     expect(screen.getByText(t('intelligence.gateMaterial'))).toBeInTheDocument()
     expect(screen.getByText(t('intelligence.readyNo'))).toBeInTheDocument()
     expect(screen.getByText(t('intelligence.filterHint', { pct: '0%' }))).toBeInTheDocument()
+  })
+
+  it('treats 0.0399 as a percent fraction trap, not 3.99% a.m.', () => {
+    expect(looksLikeRateFraction('0.0399')).toBe(true)
+    expect(looksLikeRateFraction('3.99')).toBe(false)
+    expect(looksLikeRateFraction('14')).toBe(false)
+    expect(looksLikeRateFraction('')).toBe(false)
   })
 })

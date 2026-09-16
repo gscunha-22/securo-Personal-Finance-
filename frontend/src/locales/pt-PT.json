@@ -2542,6 +2542,8 @@
     "exampleLoaded": "Exemplo didático carregado",
     "product": "Produto",
     "monthlyRate": "Taxa efetiva % a.m.",
+    "ratePercentHint": "Informe 14 para 14% ao mês, não 0,14.",
+    "rateLooksLikeFraction": "{{value}} parece uma fração decimal. Este campo é percentual: 3,99 significa 3,99% a.m. Continuar?",
     "cetAnnualInformed": "CET anual informado (%)",
     "installment": "Parcela / mínimo",
     "remainingTerm": "Prazo remanescente (meses)",
