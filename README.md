@@ -212,7 +212,7 @@ Without that server the agents still chat, but they have no tools and cannot rea
 
 ## Private instance
 
-For a single-owner deploy set `PRIVATE_INSTANCE=true`. Public registration stops after the first account. Vault originals are immutable (SHA-256, magic MIME). Extracted rows stay unselected until you approve them. Gmail/Outlook/Sheets adapters are read-only. Backup and restore scripts live in `scripts/`. Operational notes: [docs/private-instance.md](docs/private-instance.md). Readiness: [docs/readiness-report.md](docs/readiness-report.md).
+For a single-owner deploy set `PRIVATE_INSTANCE=true`. Public registration stops after the first account. Vault originals are immutable (SHA-256, magic MIME). Extracted rows stay unselected until you approve them. Gmail/Outlook/Sheets adapters are read-only. Backup and restore scripts live in `scripts/`. Operational notes: [docs/private-instance.md](docs/private-instance.md). Cloud topology if using Vercel and Neon: [docs/architecture-vercel-neon.md](docs/architecture-vercel-neon.md). Readiness: [docs/readiness-report.md](docs/readiness-report.md).
 
 ## Tech Stack
 

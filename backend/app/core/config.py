@@ -19,6 +19,10 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/securo"
+    # Neon (and other poolers): Alembic, pg_dump and restore must not use the
+    # transaction pooler. Empty means "derive a direct host from DATABASE_URL
+    # when the hostname contains -pooler, otherwise use DATABASE_URL".
+    database_url_direct: str = ""
 
     # Auth
     secret_key: SecretStr = SecretStr("change-me-in-production")
