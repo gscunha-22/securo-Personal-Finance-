@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace, current_writable_workspace
 from app.models.account import Account
@@ -165,6 +166,15 @@ async def restore(
     instance backup scripts.
     """
     data = await file.read()
+    settings = get_settings()
+    max_bytes = settings.storage_max_document_size_mb * 1024 * 1024
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(data) > max_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds the {settings.storage_max_document_size_mb} MB limit",
+        )
     try:
         restored = await restore_workspace_archive(
             session,

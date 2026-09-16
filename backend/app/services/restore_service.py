@@ -12,6 +12,7 @@ import uuid
 import zipfile
 from datetime import date
 from decimal import Decimal
+from typing import TypeAlias
 
 import pyzipper
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,8 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.debt import Debt, DebtInstallment, DebtPayment
 from app.services import audit_service
 
+ArchiveFile: TypeAlias = zipfile.ZipFile | pyzipper.AESZipFile
 
-def _open_archive(data: bytes, password: str | None) -> zipfile.ZipFile:
+
+def _open_archive(data: bytes, password: str | None) -> ArchiveFile:
     buf = io.BytesIO(data)
     if password:
         archive = pyzipper.AESZipFile(buf)
@@ -29,10 +32,13 @@ def _open_archive(data: bytes, password: str | None) -> zipfile.ZipFile:
     return zipfile.ZipFile(buf)
 
 
-def _load_json(archive: zipfile.ZipFile, name: str) -> list[dict]:
+def _load_json(archive: ArchiveFile, name: str) -> list[dict]:
     if name not in archive.namelist():
         return []
-    payload = json.loads(archive.read(name).decode("utf-8"))
+    try:
+        payload = json.loads(archive.read(name).decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError(f"Invalid JSON payload in {name}") from exc
     return payload if isinstance(payload, list) else []
 
 
@@ -52,13 +58,16 @@ async def restore_workspace_archive(
 ) -> dict[str, int]:
     try:
         archive = _open_archive(data, password)
-    except RuntimeError as exc:
+    except (RuntimeError, zipfile.BadZipFile) as exc:
         raise ValueError("Could not open the archive. Check the password.") from exc
 
-    with archive:
-        debts = _load_json(archive, "debts.json")
-        installments = _load_json(archive, "debt_installments.json")
-        payments = _load_json(archive, "debt_payments.json")
+    try:
+        with archive:
+            debts = _load_json(archive, "debts.json")
+            installments = _load_json(archive, "debt_installments.json")
+            payments = _load_json(archive, "debt_payments.json")
+    except RuntimeError as exc:
+        raise ValueError("Could not read the archive. Check the password.") from exc
 
     restored = {"debts": 0, "debt_installments": 0, "debt_payments": 0}
 

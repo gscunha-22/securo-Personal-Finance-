@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
@@ -143,6 +144,13 @@ def _document_read(doc: VaultDocument) -> DocumentRead:
     )
 
 
+def _inline_content_disposition(filename: str) -> str:
+    clean = filename.replace("\r", "").replace("\n", "").replace('"', "").replace("\\", "_")
+    if not clean:
+        clean = "download"
+    return f"""inline; filename="{clean}"; filename*=UTF-8''{quote(clean)}"""
+
+
 @router.post("/api/documents", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),
@@ -166,6 +174,8 @@ async def upload_document(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     document = await vault_service.get_document(session, ctx.workspace.id, document.id)
+    if document is None:
+        raise HTTPException(status_code=500, detail="Failed to load uploaded document")
     return _document_read(document)
 
 
@@ -204,7 +214,7 @@ async def download_document(
         content=data,
         media_type=stored.detected_mime,
         headers={
-            "Content-Disposition": f'inline; filename="{stored.original_filename}"',
+            "Content-Disposition": _inline_content_disposition(stored.original_filename),
             "Cache-Control": "private, no-store",
         },
     )

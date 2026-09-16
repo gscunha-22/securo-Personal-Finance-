@@ -243,3 +243,29 @@ async def test_backup_includes_intelligence_files_and_restore_is_additive(
     listed = (await client.get("/api/debts", headers=auth_headers)).json()
     assert len(listed) == 1
 
+
+@pytest.mark.asyncio
+async def test_restore_rejects_invalid_archive(client: AsyncClient, auth_headers):
+    restored = await client.post(
+        "/api/export/restore",
+        headers=auth_headers,
+        files={"file": ("backup.zip", b"not-a-zip", "application/zip")},
+    )
+    assert restored.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_restore_rejects_oversized_archive(client: AsyncClient, auth_headers, monkeypatch):
+    settings = get_settings()
+    original = settings.storage_max_document_size_mb
+    monkeypatch.setattr(settings, "storage_max_document_size_mb", 1)
+    try:
+        payload = b"x" * (1024 * 1024 + 1)
+        restored = await client.post(
+            "/api/export/restore",
+            headers=auth_headers,
+            files={"file": ("backup.zip", payload, "application/zip")},
+        )
+        assert restored.status_code == 400
+    finally:
+        monkeypatch.setattr(settings, "storage_max_document_size_mb", original)

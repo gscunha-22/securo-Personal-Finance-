@@ -459,7 +459,7 @@
     "passkeyCancelled": "De passkey-prompt is geannuleerd",
     "passkeyMethod": "Passkey",
     "totpMethod": "Authenticatiecode",
-    "usePasskeySecondFactor": "Beveiligingssleutel/passkey gebruiken",
+    "usePasskeySecondFactor": "Passkey als tweede factor gebruiken",
     "passkeySecondFactorTitle": "Verificatie van beveiligingssleutel",
     "passkeySecondFactorDescription": "Gebruik uw beveiligingssleutel of de passkey van uw apparaat om deze aanmelding goed te keuren.",
     "passkeySecondFactorPrompt": "Klik op de onderstaande knop en volg de prompt van de beveiligingssleutel van uw browser.",

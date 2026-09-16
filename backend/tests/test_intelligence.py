@@ -302,3 +302,22 @@ async def test_document_file_is_not_public(client: AsyncClient, auth_headers, te
     allowed = await client.get(f"/api/documents/{doc_id}/file", headers=auth_headers)
     assert allowed.status_code == 200
     assert allowed.headers.get("Cache-Control") == "private, no-store"
+
+
+@pytest.mark.asyncio
+async def test_document_download_uses_safe_content_disposition(
+    client: AsyncClient, auth_headers, test_account, vault_dir
+):
+    uploaded = await client.post(
+        "/api/documents",
+        headers=auth_headers,
+        files={"file": ('evil"name.csv', CSV, "text/csv")},
+        data={"account_id": str(test_account.id)},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    doc_id = uploaded.json()["id"]
+    response = await client.get(f"/api/documents/{doc_id}/file", headers=auth_headers)
+    assert response.status_code == 200
+    disposition = response.headers.get("Content-Disposition", "")
+    assert "filename*=" in disposition
+    assert '"evil"name.csv"' not in disposition
