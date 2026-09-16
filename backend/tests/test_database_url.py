@@ -103,3 +103,41 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     assert 'framework: "vite"' in source
     assert "nextjs" not in source.lower()
     assert not (REPO_ROOT / "frontend" / "vercel.json").exists()
+
+
+def test_sigv4_headers_include_signed_headers_and_signature():
+    from app.providers.s3_storage import presigned_get_url, sigv4_headers
+
+    headers = sigv4_headers(
+        "PUT",
+        "https://bucket.s3.us-east-2.amazonaws.com/key",
+        access_key="AKIATEST",
+        secret_key="secret",
+        region="us-east-2",
+        extra_headers={"Content-Type": "text/plain"},
+        body=b"hello",
+        amz_date="20260101T000000Z",
+    )
+    auth = headers["Authorization"]
+    assert "SignedHeaders=" in auth
+    assert "Signature=" in auth
+    assert "Credential=AKIATEST/" in auth
+    url = presigned_get_url(
+        "https://bucket.s3.us-east-2.amazonaws.com/key",
+        access_key="AKIATEST",
+        secret_key="secret",
+        region="us-east-2",
+    )
+    assert "X-Amz-Signature=" in url
+    assert "X-Amz-Expires=" in url
+
+
+def test_content_disposition_encodes_quotes_and_unicode():
+    from app.core.privacy import content_disposition
+
+    header = content_disposition("inline", 'nota "Q1".csv')
+    assert "\n" not in header
+    assert "filename*=UTF-8''" in header
+    assert 'filename="nota _Q1_.csv"' in header
+    injected = content_disposition("inline", "evil\r\nContent-Type: text/html")
+    assert "\r" not in injected and "\n" not in injected

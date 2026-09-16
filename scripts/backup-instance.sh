@@ -8,23 +8,58 @@ mkdir -p "$OUT"
 
 echo "Writing instance backup to $OUT"
 
-if docker compose ps db >/dev/null 2>&1; then
-  docker compose exec -T db pg_dump -U postgres -d securo -Fc > "$OUT/postgres.dump"
-  docker compose exec -T db pg_dump -U postgres -d securo --schema-only > "$OUT/schema.sql"
-else
-  echo "docker compose db is not running; expected a custom DATABASE_URL dump." >&2
+libpq_url() {
+  local raw="${1-}"
+  raw="${raw/postgresql+asyncpg:\/\//postgresql://}"
+  raw="${raw/postgresql+psycopg:\/\//postgresql://}"
+  raw="${raw/ssl=require/sslmode=require}"
+  printf '%s' "$raw"
+}
+
+dump_postgres() {
+  local url="${DATABASE_URL_DIRECT:-}"
+  if [ -z "$url" ]; then
+    url="${DATABASE_URL:-}"
+  fi
+  if [ -n "$url" ] && [[ "$url" == *neon.tech* || -n "${DATABASE_URL_DIRECT:-}" ]]; then
+    echo "Dumping via libpq URL (direct/Neon)."
+    pg_dump "$(libpq_url "$url")" -Fc > "$OUT/postgres.dump"
+    pg_dump "$(libpq_url "$url")" --schema-only > "$OUT/schema.sql"
+    return 0
+  fi
+  if docker compose ps db >/dev/null 2>&1; then
+    docker compose exec -T db pg_dump -U postgres -d securo -Fc > "$OUT/postgres.dump"
+    docker compose exec -T db pg_dump -U postgres -d securo --schema-only > "$OUT/schema.sql"
+    return 0
+  fi
+  echo "docker compose db is not running and no DATABASE_URL_DIRECT was set." >&2
   exit 1
+}
+
+dump_postgres
+
+ATTACHMENTS_INCLUDED=false
+if docker compose ps backend >/dev/null 2>&1; then
+  if docker compose exec -T backend tar -C /app/data -czf - attachments > "$OUT/attachments.tar.gz"; then
+    ATTACHMENTS_INCLUDED=true
+  else
+    echo "Attachment archive failed." >&2
+    rm -f "$OUT/attachments.tar.gz"
+    exit 1
+  fi
 fi
 
-if docker compose ps backend >/dev/null 2>&1; then
-  docker compose exec -T backend tar -C /app/data -czf - attachments > "$OUT/attachments.tar.gz" || true
+includes='["postgres.dump", "schema.sql"'
+if [ "$ATTACHMENTS_INCLUDED" = true ]; then
+  includes+=', "attachments.tar.gz"'
 fi
+includes+=']'
 
 cat > "$OUT/manifest.json" <<EOF
 {
   "created_at": "$STAMP",
-  "includes": ["postgres.dump", "schema.sql", "attachments.tar.gz"],
-  "notes": "Restore with scripts/restore-instance.sh. Workspace JSON zip from the UI does not contain original files."
+  "includes": $includes,
+  "notes": "Restore with scripts/restore-instance.sh. Workspace JSON zip from the UI does not contain original files. Neon dumps use DATABASE_URL_DIRECT."
 }
 EOF
 

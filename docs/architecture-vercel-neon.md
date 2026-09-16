@@ -188,6 +188,8 @@ Já no tree, para o operador ligar os três planos sem reescrever o app:
 | Alembic no endpoint direto | `DATABASE_URL_DIRECT`; se vazio e o host for pooler, deriva o compute tirando `-pooler` |
 | Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
 | SPA Vercel | `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js) |
+| Helm | `secret.databaseUrlDirect` → `DATABASE_URL_DIRECT` no Job de migração |
+| Backup | `scripts/backup-instance.sh` / `restore-instance.sh` usam `DATABASE_URL_DIRECT` e recusam tar com `..`/symlink |
 | Vite local | `frontend/vite.config.ts` continua a fazer proxy de `/api` para `BACKEND_URL` |
 
 Nada disto provisiona Neon nem publica na Vercel. Sem `API_ORIGIN` o build da Vercel falha de propósito.

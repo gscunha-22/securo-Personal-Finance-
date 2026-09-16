@@ -18,6 +18,7 @@ import pyzipper
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
 from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
 from app.services import audit_service
 
@@ -54,10 +55,17 @@ async def restore_workspace_archive(
 ) -> dict[str, int]:
     try:
         archive = _open_archive(data, password)
-    except RuntimeError as exc:
+    except (RuntimeError, zipfile.BadZipFile, OSError) as exc:
         raise ValueError("Could not open the archive. Check the password.") from exc
 
     with archive:
+        total_uncompressed = 0
+        for info in archive.infolist():
+            if info.file_size > 20 * 1024 * 1024:
+                raise ValueError("Archive entry is too large")
+            total_uncompressed += info.file_size
+            if total_uncompressed > 80 * 1024 * 1024:
+                raise ValueError("Archive is too large")
         debts = _load_json(archive, "debts.json")
         installments = _load_json(archive, "debt_installments.json")
         payments = _load_json(archive, "debt_payments.json")
@@ -76,12 +84,19 @@ async def restore_workspace_archive(
         debt_id = uuid.UUID(str(row["id"]))
         if await session.get(Debt, debt_id):
             continue
+        account_id = uuid.UUID(row["account_id"]) if row.get("account_id") else None
+        if account_id is not None:
+            owned = await session.scalar(
+                select(Account.id).where(Account.id == account_id, Account.workspace_id == workspace_id)
+            )
+            if owned is None:
+                account_id = None
         session.add(
             Debt(
                 id=debt_id,
                 user_id=user_id,
                 workspace_id=workspace_id,
-                account_id=uuid.UUID(row["account_id"]) if row.get("account_id") else None,
+                account_id=account_id,
                 name=row["name"],
                 creditor=row["creditor"],
                 currency=row.get("currency") or "USD",

@@ -4,16 +4,20 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import re
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import Request, Response
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import get_settings
 from app.models.user import User
+
+_BOOTSTRAP_LOCK = 87451203
 
 
 def _fernet() -> Fernet:
@@ -47,6 +51,14 @@ async def owner_count(session: AsyncSession) -> int:
     return int(result or 0)
 
 
+async def lock_instance_bootstrap(session: AsyncSession) -> None:
+    """Serialize first-user creation. PostgreSQL advisory lock; no-op on SQLite."""
+    bind = session.get_bind()
+    dialect = getattr(getattr(bind, "dialect", None), "name", "")
+    if dialect == "postgresql":
+        await session.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _BOOTSTRAP_LOCK})
+
+
 async def registration_allowed(session: AsyncSession) -> bool:
     from app.services.admin_service import is_registration_enabled
 
@@ -54,6 +66,14 @@ async def registration_allowed(session: AsyncSession) -> bool:
     if settings.private_instance and await owner_count(session) >= 1:
         return False
     return await is_registration_enabled(session)
+
+
+def content_disposition(disposition: str, filename: str) -> str:
+    """RFC 5987 Content-Disposition with a sanitized ASCII fallback."""
+    raw = (filename or "download").replace("\r", " ").replace("\n", " ").strip() or "download"
+    fallback = re.sub(r'["\\]', "_", raw)
+    fallback = "".join(ch if ch.isascii() else "_" for ch in fallback)[:80] or "download"
+    return f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(raw)}"
 
 
 def session_cookie_kwargs() -> dict:

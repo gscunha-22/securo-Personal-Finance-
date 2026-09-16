@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -76,6 +77,12 @@ async def upload_document(
         raise ValueError(f"File exceeds the {settings.storage_max_document_size_mb} MB limit")
     if not data:
         raise ValueError("Empty file")
+    if account_id is not None:
+        account = await session.scalar(
+            select(Account).where(Account.id == account_id, Account.workspace_id == workspace_id)
+        )
+        if account is None:
+            raise ValueError("Account not found in this workspace")
 
     detected = detect_mime(data, filename, declared_mime)
     if detected not in ALLOWED_MIMES:
@@ -154,21 +161,42 @@ async def upload_document(
 
 
 async def process_extraction_job(session: AsyncSession, job_id: uuid.UUID) -> ProcessingJob:
-    job = await session.get(ProcessingJob, job_id)
+    job = await session.scalar(
+        select(ProcessingJob).where(ProcessingJob.id == job_id).with_for_update()
+    )
     if job is None:
         raise LookupError("Job not found")
-    if job.status in {"completed", "waiting_review"}:
+    if job.status in {"completed", "waiting_review", "partially_completed", "cancelled"}:
+        return job
+    now = datetime.now(timezone.utc)
+    if (
+        job.status == "running"
+        and job.lock_expires_at is not None
+        and job.lock_expires_at > now
+    ):
         return job
     await job_service.mark_running(session, job)
+    await session.commit()
     try:
         document_id = uuid.UUID(job.payload["document_id"])
         await extract_document(session, document_id)
+        job = await session.get(ProcessingJob, job_id)
+        if job is None:
+            raise LookupError("Job not found")
         await job_service.finish(session, job, "waiting_review")
         await session.commit()
     except Exception as exc:
-        await job_service.finish(session, job, "failed", error=str(exc))
-        await session.commit()
-    return job
+        await session.rollback()
+        job = await session.get(ProcessingJob, job_id)
+        if job is not None:
+            await job_service.finish(session, job, "failed", error=str(exc))
+            await session.commit()
+        else:
+            raise
+    resolved = await session.get(ProcessingJob, job_id)
+    if resolved is None:
+        raise LookupError("Job not found")
+    return resolved
 
 
 async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> VaultDocument:
@@ -512,10 +540,12 @@ async def decide_candidates(
     if decision not in {"approve", "reject", "defer"}:
         raise ValueError("Decision must be approve, reject, or defer")
     result = await session.execute(
-        select(ImportCandidate).where(
+        select(ImportCandidate)
+        .where(
             ImportCandidate.workspace_id == workspace_id,
             ImportCandidate.id.in_(candidate_ids),
         )
+        .with_for_update()
     )
     candidates = list(result.scalars().all())
     if not candidates:

@@ -18,6 +18,9 @@ secret:
   # If postgresql.enabled is true, the internal database will be deployed.
   # If postgresql.enabled is false, you must provide your external database URL here or in existingSecret.
   databaseUrl: 'postgresql+asyncpg://postgres:postgres@{{ include "securo.fullname" . }}-postgresql:5432/securo'
+  # Neon (or other poolers): Alembic/pg_dump must not use the transaction pooler.
+  # Leave empty to derive a direct host from databaseUrl when it contains -pooler.
+  databaseUrlDirect: ""
 
   # Pluggy
   pluggyClientId: ""
