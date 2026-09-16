@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
+from app.core.privacy import content_disposition
 from app.core.rate_limit import RateLimiter
 from app.core.workspace_context import (
     WorkspaceContext,
@@ -225,7 +226,7 @@ async def download_document(
         content=data,
         media_type=stored.detected_mime,
         headers={
-            "Content-Disposition": f'inline; filename="{stored.original_filename}"',
+            "Content-Disposition": content_disposition("inline", stored.original_filename),
             "Cache-Control": "private, no-store",
         },
     )
@@ -412,7 +413,7 @@ async def validate_ai_suggestion(
 ):
     _ = ctx
     try:
-        return vault_service.ai_validate_suggestion(body.model_dump())
+        return vault_service.ai_validate_suggestion(body.model_dump(exclude_none=True))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -431,7 +432,10 @@ async def debts_create(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    return await create_debt(session, ctx.workspace.id, ctx.user_id, data)
+    try:
+        return await create_debt(session, ctx.workspace.id, ctx.user_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/api/debts/{debt_id}", response_model=DebtRead)
@@ -454,10 +458,14 @@ async def debts_payment(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    payment = await add_payment(session, ctx.workspace.id, ctx.user_id, debt_id, data)
+    try:
+        payment = await add_payment(session, ctx.workspace.id, ctx.user_id, debt_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not payment:
         raise HTTPException(status_code=404, detail="Debt not found")
-    return {"id": payment.id, "outstanding_balance": str(payment.debt.outstanding_balance) if payment.debt else None}
+    balance = payment.debt.outstanding_balance if payment.debt is not None else None
+    return {"id": payment.id, "outstanding_balance": str(balance) if balance is not None else None}
 
 
 @router.post("/api/debts/{debt_id}/installments")

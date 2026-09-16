@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import get_jwt_strategy, get_user_manager, UserManager
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.database import get_async_session
-from app.core.privacy import token_json_response
+from app.core.privacy import lock_instance_bootstrap, token_json_response
 from app.models.account import Account
 from app.models.user import User
 
@@ -40,7 +40,7 @@ async def create_admin(
     session: AsyncSession = Depends(get_async_session),
     user_manager: UserManager = Depends(get_user_manager),
 ):
-    # Check if users already exist
+    await lock_instance_bootstrap(session)
     result = await session.execute(select(func.count(User.id)))
     count = result.scalar() or 0
     if count > 0:
