@@ -303,6 +303,9 @@ async def test_document_file_is_not_public(client: AsyncClient, auth_headers, te
     allowed = await client.get(f"/api/documents/{doc_id}/file", headers=auth_headers)
     assert allowed.status_code == 200
     assert allowed.headers.get("Cache-Control") == "private, no-store"
+    disposition = allowed.headers.get("content-disposition", "")
+    assert "filename*=UTF-8''" in disposition
+    assert "stmt.csv" in disposition
 
 
 TINY_PNG = (
@@ -392,3 +395,82 @@ async def test_inferred_recurrence_is_not_materialized(
     stored = await session.get(ImportCandidate, UUID(candidates[0]["id"]))
     assert stored is not None
     assert stored.extra and stored.extra.get("recurrence_suggestion", {}).get("confirmed") is False
+
+
+@pytest.mark.asyncio
+async def test_ai_suggestion_omits_null_facts(client: AsyncClient, auth_headers):
+    response = await client.post(
+        "/api/ai/suggestions",
+        headers=auth_headers,
+        json={"rationale": "keyword match", "confidence": 0.4, "category": "grocery"},
+    )
+    assert response.status_code == 200, response.text
+    rejected = await client.post(
+        "/api/ai/suggestions",
+        headers=auth_headers,
+        json={"rationale": "invented", "confidence": 0.4, "amount": "10.00"},
+    )
+    assert rejected.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_debt_payment_and_account_guards(client: AsyncClient, auth_headers):
+    created = await client.post(
+        "/api/debts",
+        headers=auth_headers,
+        json={
+            "name": "Card",
+            "creditor": "Bank",
+            "currency": "BRL",
+            "principal": "1000.00",
+            "outstanding_balance": "1000.00",
+            "account_id": "00000000-0000-0000-0000-000000000001",
+        },
+    )
+    assert created.status_code == 400
+
+    debt = await client.post(
+        "/api/debts",
+        headers=auth_headers,
+        json={
+            "name": "Card",
+            "creditor": "Bank",
+            "currency": "BRL",
+            "principal": "1000.00",
+            "outstanding_balance": "1000.00",
+        },
+    )
+    assert debt.status_code == 201, debt.text
+    debt_id = debt.json()["id"]
+    negative = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-10", "amount": "-10.00", "currency": "BRL"},
+    )
+    assert negative.status_code == 422
+    mismatch = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-10", "amount": "10.00", "currency": "USD"},
+    )
+    assert mismatch.status_code == 400
+    paid = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-10", "amount": "10.00", "currency": "BRL"},
+    )
+    assert paid.status_code == 200, paid.text
+    assert paid.json()["outstanding_balance"] == "990.00"
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_foreign_account(
+    client: AsyncClient, auth_headers, vault_dir
+):
+    response = await client.post(
+        "/api/documents",
+        headers=auth_headers,
+        files={"file": ("stmt.csv", CSV, "text/csv")},
+        data={"account_id": "00000000-0000-0000-0000-000000000001"},
+    )
+    assert response.status_code == 400

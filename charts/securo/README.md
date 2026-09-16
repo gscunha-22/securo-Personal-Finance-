@@ -52,7 +52,8 @@ global:
   existingSecret: "my-securo-secrets"
 ```
 
-The secret must contain the corresponding keys (e.g., `secretKey`, `databaseUrl`, `agentsOpenaiApiKey`).
+The secret must contain the corresponding keys (e.g., `secretKey`, `databaseUrl`, `databaseUrlDirect`, `agentsOpenaiApiKey`).
+For Neon, `databaseUrl` is the pooled (`-pooler`) URL and `databaseUrlDirect` is the compute endpoint used by the migration Job.
 
 ## Uninstalling the Chart
 
