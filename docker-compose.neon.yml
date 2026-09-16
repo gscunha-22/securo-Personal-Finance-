@@ -1,7 +1,7 @@
 # Overlay for persistent compute against Neon Postgres + S3-compatible vault.
 # Does not git-deploy. Secrets stay in the environment, never in this file.
 #
-#   docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d
+#   docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d --build
 #
 # Requires DATABASE_URL (Neon -pooler) and DATABASE_URL_DIRECT (compute).
 # Redis stays in this compose unless REDIS_URL is overridden. The SPA may

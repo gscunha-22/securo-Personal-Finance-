@@ -217,7 +217,7 @@ Já no tree, para o operador ligar os três planos sem reescrever o app:
 | Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
 | SPA Vercel | `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js) |
 | Helm | `secret.databaseUrlDirect` → `DATABASE_URL_DIRECT`; `config.storageProvider` / `secret.storageS3*` para o cofre S3; `config.privateInstance` e `trustedProxyHops` |
-| Compose Neon | `docker-compose.neon.yml` overlay: Postgres local desligado, `DATABASE_URL` pooled + direto, `STORAGE_PROVIDER=s3` |
+| Compose Neon | `docker-compose.neon.yml` overlay: Postgres local desligado, `DATABASE_URL` pooled + direto, `STORAGE_PROVIDER=s3`. `docker-compose.prod.yml` constrói **este** repositório (`--build`), não puxa `ghcr.io/securo-finance`. |
 | Backup | `scripts/backup-instance.sh` / `restore-instance.sh` usam `DATABASE_URL_DIRECT` e recusam tar com `..`/symlink |
 | Vite local | `frontend/vite.config.ts` continua a fazer proxy de `/api` para `BACKEND_URL` |
 | OCR | `backend/Dockerfile` instala Tesseract eng+por; sem o binário o documento fica `needs_ocr` |

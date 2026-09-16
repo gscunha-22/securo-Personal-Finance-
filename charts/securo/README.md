@@ -24,16 +24,21 @@ If your storage only supports `ReadWriteOnce` (RWO), you must restrict all Secur
 
 ## Quickstart
 
-If you want to install the latest official release from the GitHub Container Registry (GHCR):
+This chart ships the **this-repository** images (`ghcr.io/gscunha-22/securo-*`), not `ghcr.io/securo-finance`. Build them first, or `helm install` will pull a missing tag.
 
 ```bash
-helm install securo oci://ghcr.io/securo-finance/charts/securo --version <VERSION>
+docker build -t ghcr.io/gscunha-22/securo-backend:local backend
+docker build -t ghcr.io/gscunha-22/securo-frontend:local frontend
+helm install securo ./charts/securo \
+  --set backend.image.tag=local \
+  --set frontend.image.tag=local \
+  --set backend.image.pullPolicy=Never
 ```
 
-If you are developing locally and want to install from the source repository:
+On a VPS without Kubernetes, build and run this tree instead of pulling upstream:
 
 ```bash
-helm install securo ./charts/securo
+docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d --build
 ```
 
 ## Configuration

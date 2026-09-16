@@ -23,9 +23,9 @@ annotations:
   artifacthub.io/license: "AGPL-3.0"
   artifacthub.io/images: |
     - name: securo-backend
-      image: ghcr.io/securo-finance/securo-backend:latest
+      image: ghcr.io/gscunha-22/securo-backend:latest
     - name: securo-frontend
-      image: ghcr.io/securo-finance/securo-frontend:latest
+      image: ghcr.io/gscunha-22/securo-frontend:latest
   artifacthub.io/links: |
     - name: Source
       url: https://github.com/securo-finance/securo

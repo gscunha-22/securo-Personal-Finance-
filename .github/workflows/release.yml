@@ -121,8 +121,11 @@ jobs:
           VERSION="${VERSION#v}"
 
           echo "Injecting version $VERSION into artifacthub.io/images annotation"
-          sed -i "s|ghcr.io/securo-finance/securo-backend:latest|ghcr.io/securo-finance/securo-backend:${VERSION}|g" charts/securo/Chart.yaml
-          sed -i "s|ghcr.io/securo-finance/securo-frontend:latest|ghcr.io/securo-finance/securo-frontend:${VERSION}|g" charts/securo/Chart.yaml
+          OWNER="${{ github.repository_owner }}"
+          sed -i "s|ghcr.io/securo-finance/securo-backend:latest|ghcr.io/${OWNER}/securo-backend:${VERSION}|g" charts/securo/Chart.yaml
+          sed -i "s|ghcr.io/securo-finance/securo-frontend:latest|ghcr.io/${OWNER}/securo-frontend:${VERSION}|g" charts/securo/Chart.yaml
+          sed -i "s|ghcr.io/gscunha-22/securo-backend:latest|ghcr.io/${OWNER}/securo-backend:${VERSION}|g" charts/securo/Chart.yaml
+          sed -i "s|ghcr.io/gscunha-22/securo-frontend:latest|ghcr.io/${OWNER}/securo-frontend:${VERSION}|g" charts/securo/Chart.yaml
 
           echo "Injecting version $VERSION into values.yaml"
           sed -i "s|tag: latest|tag: ${VERSION}|g" charts/securo/values.yaml

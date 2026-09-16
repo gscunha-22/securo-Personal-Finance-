@@ -100,11 +100,16 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "storageS3AccessKey" in values
     assert "storageS3SecretKey" in values
     assert "privateInstance" in values
-    assert "trustedProxyHops" in values
+    assert "gscunha-22/securo-backend" in values
+    assert "securo-finance/securo-backend" not in values
     overlay = (REPO_ROOT / "docker-compose.neon.yml").read_text(encoding="utf-8")
     assert "STORAGE_PROVIDER" in overlay
     assert "DATABASE_URL_DIRECT" in overlay
     assert "local-postgres" in overlay
+    assert "--build" in overlay
+    prod = (REPO_ROOT / "docker-compose.prod.yml").read_text(encoding="utf-8")
+    assert "context: ./backend" in prod
+    assert "securo-finance/securo-backend" not in prod
     readme = (REPO_ROOT / "charts" / "securo" / "README.md").read_text(encoding="utf-8")
     assert "Deploys the Next.js" not in readme
     assert "Vite" in readme
