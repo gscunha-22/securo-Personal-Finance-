@@ -32,7 +32,7 @@ from app.models.reconciliation import (
     ReconciliationRule,
     ReconciliationSuggestion,
 )
-from app.models.debt import Debt, DebtInstallment, DebtPayment
+from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
 from app.models.vault import (
     ColumnMappingTemplate,
     DocumentExtraction,
@@ -98,6 +98,8 @@ __all__ = [
     "Debt",
     "DebtInstallment",
     "DebtPayment",
+    "DebtCashPlan",
+    "DebtOffer",
     "StoredObject",
     "SourceConnection",
     "SyncCursor",

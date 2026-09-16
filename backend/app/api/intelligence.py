@@ -17,16 +17,31 @@ from app.core.workspace_context import (
 )
 from app.services import job_service, vault_service
 from app.services.debt_service import (
+    AmortizeBody,
+    CashPlanBody,
     DebtCreate,
     DebtInstallmentCreate,
     DebtPaymentCreate,
     DebtRead,
     DebtUpdate,
+    ExampleBody,
+    OfferCreate,
+    PmtHintBody,
+    StepsBody,
     add_installment,
     add_payment,
     create_debt,
+    create_offer,
+    delete_debt,
+    delete_offer,
+    get_plan,
     list_debts,
+    pmt_hint,
+    seed_example,
+    simulate_amortize,
     update_debt,
+    update_steps,
+    upsert_cash,
 )
 from app.models.audit import AuditEvent, AppNotification
 from app.models.processing_job import ProcessingJob
@@ -165,8 +180,10 @@ async def upload_document(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    document = await vault_service.get_document(session, ctx.workspace.id, document.id)
-    return _document_read(document)
+    stored = await vault_service.get_document(session, ctx.workspace.id, document.id)
+    if stored is None:
+        raise HTTPException(status_code=500, detail="Document was stored but could not be read")
+    return _document_read(stored)
 
 
 @router.get("/api/documents", response_model=list[DocumentRead])
@@ -450,3 +467,98 @@ async def debts_installment(
     if not row:
         raise HTTPException(status_code=404, detail="Debt not found")
     return {"id": row.id}
+
+
+@router.delete("/api/debts/{debt_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def debts_delete(
+    debt_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    ok = await delete_debt(session, ctx.workspace.id, ctx.user_id, debt_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Debt not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/api/renegotiation")
+async def renegotiation_plan(
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await get_plan(session, ctx.workspace.id)
+
+
+@router.put("/api/renegotiation/cash")
+async def renegotiation_cash(
+    data: CashPlanBody,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await upsert_cash(session, ctx.workspace.id, ctx.user_id, data)
+
+
+@router.post("/api/renegotiation/offers")
+async def renegotiation_offer_create(
+    data: OfferCreate,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        return await create_offer(session, ctx.workspace.id, ctx.user_id, data)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/api/renegotiation/offers/{offer_id}")
+async def renegotiation_offer_delete(
+    offer_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    plan = await delete_offer(session, ctx.workspace.id, ctx.user_id, offer_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    return plan
+
+
+@router.put("/api/renegotiation/steps")
+async def renegotiation_steps(
+    data: StepsBody,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await update_steps(session, ctx.workspace.id, ctx.user_id, data)
+
+
+@router.post("/api/renegotiation/amortize")
+async def renegotiation_amortize(
+    data: AmortizeBody,
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        return await simulate_amortize(session, ctx.workspace.id, data)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/api/renegotiation/pmt-hint")
+async def renegotiation_pmt_hint(
+    data: PmtHintBody,
+    ctx: WorkspaceContext = Depends(current_workspace),
+):
+    _ = ctx
+    return pmt_hint(data)
+
+
+@router.post("/api/renegotiation/example")
+async def renegotiation_example(
+    data: ExampleBody,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        return await seed_example(session, ctx.workspace.id, ctx.user_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

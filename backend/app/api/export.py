@@ -16,7 +16,7 @@ from app.models.audit import AuditEvent
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.category_group import CategoryGroup
-from app.models.debt import Debt, DebtInstallment, DebtPayment
+from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
 from app.models.import_log import ImportLog
 from app.models.processing_job import ProcessingJob
 from app.models.recurring_transaction import RecurringTransaction
@@ -61,6 +61,8 @@ async def _collect(ctx: WorkspaceContext, session: AsyncSession) -> dict[str, ob
     debts = (await session.execute(select(Debt).where(Debt.workspace_id == ws_id))).scalars().all()
     debt_installments = (await session.execute(select(DebtInstallment).where(DebtInstallment.workspace_id == ws_id))).scalars().all()
     debt_payments = (await session.execute(select(DebtPayment).where(DebtPayment.workspace_id == ws_id))).scalars().all()
+    debt_cash_plans = (await session.execute(select(DebtCashPlan).where(DebtCashPlan.workspace_id == ws_id))).scalars().all()
+    debt_offers = (await session.execute(select(DebtOffer).where(DebtOffer.workspace_id == ws_id))).scalars().all()
     vault_documents = (await session.execute(select(VaultDocument).where(VaultDocument.workspace_id == ws_id))).scalars().all()
     stored_objects = (await session.execute(select(StoredObject).where(StoredObject.workspace_id == ws_id))).scalars().all()
     import_candidates = (await session.execute(select(ImportCandidate).where(ImportCandidate.workspace_id == ws_id))).scalars().all()
@@ -87,6 +89,8 @@ async def _collect(ctx: WorkspaceContext, session: AsyncSession) -> dict[str, ob
         "debts": debts,
         "debt_installments": debt_installments,
         "debt_payments": debt_payments,
+        "debt_cash_plans": debt_cash_plans,
+        "debt_offers": debt_offers,
         "vault_documents": vault_documents,
         "stored_objects": stored_objects,
         "import_candidates": import_candidates,

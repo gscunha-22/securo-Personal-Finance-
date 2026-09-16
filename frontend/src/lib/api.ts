@@ -68,6 +68,7 @@ import type {
   AuditEvent,
   SourceConnection,
   Debt,
+  RenegotiationPlan,
   SpendingByCategory,
   MonthlyTrend,
   BalanceHistory,
@@ -2074,15 +2075,43 @@ export const intelligence = {
     const { data } = await api.get('/debts')
     return data
   },
-  createDebt: async (payload: {
-    name: string
-    creditor: string
-    currency: string
-    principal: string
-    outstanding_balance: string
-    strategy_assumptions?: string
-  }): Promise<Debt> => {
+  createDebt: async (payload: Record<string, unknown>): Promise<Debt> => {
     const { data } = await api.post('/debts', payload)
+    return data
+  },
+  deleteDebt: async (id: string): Promise<void> => {
+    await api.delete(`/debts/${id}`)
+  },
+  getPlan: async (): Promise<RenegotiationPlan> => {
+    const { data } = await api.get('/renegotiation')
+    return data
+  },
+  updateCash: async (payload: Record<string, unknown>): Promise<RenegotiationPlan> => {
+    const { data } = await api.put('/renegotiation/cash', payload)
+    return data
+  },
+  createOffer: async (payload: Record<string, unknown>): Promise<RenegotiationPlan> => {
+    const { data } = await api.post('/renegotiation/offers', payload)
+    return data
+  },
+  deleteOffer: async (id: string): Promise<RenegotiationPlan> => {
+    const { data } = await api.delete(`/renegotiation/offers/${id}`)
+    return data
+  },
+  updateSteps: async (steps: Record<string, boolean>): Promise<RenegotiationPlan> => {
+    const { data } = await api.put('/renegotiation/steps', { steps })
+    return data
+  },
+  amortize: async (payload: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const { data } = await api.post('/renegotiation/amortize', payload)
+    return data
+  },
+  pmtHint: async (payload: Record<string, unknown>): Promise<{ pmt: string; cet_annual: string | null }> => {
+    const { data } = await api.post('/renegotiation/pmt-hint', payload)
+    return data
+  },
+  seedExample: async (replace = false, currency = 'BRL'): Promise<RenegotiationPlan> => {
+    const { data } = await api.post('/renegotiation/example', { replace, currency })
     return data
   },
 }
