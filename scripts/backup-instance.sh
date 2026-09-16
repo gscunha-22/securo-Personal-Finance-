@@ -38,6 +38,13 @@ dump_postgres() {
 
 dump_postgres
 
+VAULT_INCLUDED=false
+if [ "${STORAGE_PROVIDER:-}" = "s3" ] && [ -n "${STORAGE_S3_BUCKET:-}" ]; then
+  echo "Copying S3 vault objects."
+  python3 "$ROOT/scripts/vault_s3.py" pull "$OUT/vault"
+  VAULT_INCLUDED=true
+fi
+
 ATTACHMENTS_INCLUDED=false
 if docker compose ps backend >/dev/null 2>&1; then
   if docker compose exec -T backend tar -C /app/data -czf - attachments > "$OUT/attachments.tar.gz"; then
@@ -50,6 +57,9 @@ if docker compose ps backend >/dev/null 2>&1; then
 fi
 
 includes='["postgres.dump", "schema.sql"'
+if [ "$VAULT_INCLUDED" = true ]; then
+  includes+=', "vault/"'
+fi
 if [ "$ATTACHMENTS_INCLUDED" = true ]; then
   includes+=', "attachments.tar.gz"'
 fi
@@ -59,7 +69,7 @@ cat > "$OUT/manifest.json" <<EOF
 {
   "created_at": "$STAMP",
   "includes": $includes,
-  "notes": "Restore with scripts/restore-instance.sh. Workspace JSON zip from the UI does not contain original files. Neon dumps use DATABASE_URL_DIRECT."
+  "notes": "Restore with scripts/restore-instance.sh. Workspace JSON zip from the UI does not contain original files. Neon dumps use DATABASE_URL_DIRECT. STORAGE_PROVIDER=s3 copies vault objects into vault/."
 }
 EOF
 

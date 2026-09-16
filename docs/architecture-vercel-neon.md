@@ -253,8 +253,9 @@ flowchart LR
 
 - Postgres: `pg_dump` / restore no endpoint **direto** do Neon (PITR do
   Neon cobre o acidente; o script da instância cobre o operador).
-- Cofre: lifecycle do bucket S3, versionamento ligado, originais nunca
-  overwritten (já é a regra de `stored_objects.sha256`).
+- Cofre: `scripts/backup-instance.sh` copia objetos S3 para `vault/` quando
+  `STORAGE_PROVIDER=s3`; restore faz o push de volta. Originais nunca são
+  overwritten no sentido de SHA-256 (mesma chave, mesmos bytes).
 - `GET /api/export/backup` continua a ser metadados, sem bytes nem refresh
   tokens. Restore aditivo não posta candidatos.
 - `scripts/backup-instance.sh` deixa de ser “volume Docker”; passa a

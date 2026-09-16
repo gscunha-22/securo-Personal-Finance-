@@ -36,6 +36,11 @@ restore_postgres() {
 
 restore_postgres
 
+if [ -d "$SRC/vault" ]; then
+  echo "Restoring S3 vault objects."
+  python3 "$(cd "$(dirname "$0")" && pwd)/vault_s3.py" push "$SRC/vault"
+fi
+
 if [ -f "$SRC/attachments.tar.gz" ]; then
   SAFE="$(mktemp)"
   python3 - "$SRC/attachments.tar.gz" "$SAFE" <<'PY'

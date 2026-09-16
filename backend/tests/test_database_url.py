@@ -109,6 +109,9 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "DATABASE_URL_DIRECT" in overlay
     assert "local-postgres" in overlay
     assert "--build" in overlay
+    backup = (REPO_ROOT / "scripts" / "backup-instance.sh").read_text(encoding="utf-8")
+    assert "vault_s3.py" in backup
+    assert (REPO_ROOT / "scripts" / "vault_s3.py").is_file()
     prod = (REPO_ROOT / "docker-compose.prod.yml").read_text(encoding="utf-8")
     assert "context: ./backend" in prod
     assert "securo-finance/securo-backend" not in prod
