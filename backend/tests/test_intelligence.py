@@ -263,6 +263,92 @@ async def test_debts_and_private_instance(
 
 
 @pytest.mark.asyncio
+async def test_debt_create_rejects_foreign_account_id(client: AsyncClient, auth_headers):
+    created = await client.post(
+        "/api/debts",
+        headers=auth_headers,
+        json={
+            "name": "Loan",
+            "creditor": "Bank",
+            "currency": "BRL",
+            "principal": "1000.00",
+            "outstanding_balance": "900.00",
+            "strategy_assumptions": "Assumptions note.",
+            "account_id": str(uuid.uuid4()),
+        },
+    )
+    assert created.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_debt_payment_rejects_non_brl_and_non_positive(
+    client: AsyncClient, auth_headers, vault_dir
+):
+    created = await client.post(
+        "/api/debts",
+        headers=auth_headers,
+        json={
+            "name": "Car loan",
+            "creditor": "Bank",
+            "currency": "BRL",
+            "principal": "2000.00",
+            "outstanding_balance": "1800.00",
+            "strategy_assumptions": "Assumptions note.",
+        },
+    )
+    assert created.status_code == 201, created.text
+    debt_id = created.json()["id"]
+
+    invalid_currency = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-15", "amount": "100.00", "currency": "USD"},
+    )
+    assert invalid_currency.status_code == 400
+
+    invalid_amount = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-15", "amount": "0.00", "currency": "BRL"},
+    )
+    assert invalid_amount.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_duplicate_detection_includes_transaction_type(
+    client: AsyncClient, auth_headers, session: AsyncSession, test_user, test_account, vault_dir
+):
+    existing_credit = Transaction(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        workspace_id=test_account.workspace_id,
+        account_id=test_account.id,
+        description="Refund",
+        amount=Decimal("42.50"),
+        currency="BRL",
+        date=date(2026, 1, 10),
+        effective_date=date(2026, 1, 10),
+        type="credit",
+        source="manual",
+        status="posted",
+    )
+    session.add(existing_credit)
+    await session.commit()
+
+    response = await client.post(
+        "/api/documents",
+        headers=auth_headers,
+        files={"file": ("stmt.csv", CSV, "text/csv")},
+        data={"account_id": str(test_account.id)},
+    )
+    assert response.status_code == 201, response.text
+
+    candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    debit_row = [c for c in candidates if c["description"] == "Grocery market"][0]
+    assert debit_row["duplicate_of_transaction_id"] is None
+
+
+@pytest.mark.asyncio
 async def test_abandoned_job_recovery(session: AsyncSession, test_workspace):
     from app.models.processing_job import ProcessingJob
     from app.services import job_service

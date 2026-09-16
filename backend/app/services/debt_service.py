@@ -8,14 +8,37 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.account import Account
 from app.models.debt import Debt, DebtInstallment, DebtPayment
 from app.services import audit_service
+
+
+def _currency_brl(value: str | None) -> str:
+    cur = (value or "BRL").upper()
+    if cur != "BRL":
+        raise ValueError("Only BRL is supported")
+    return cur
+
+
+async def _validated_account_id(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    account_id: uuid.UUID | None,
+) -> uuid.UUID | None:
+    if account_id is None:
+        return None
+    account = await session.scalar(
+        select(Account.id).where(Account.id == account_id, Account.workspace_id == workspace_id)
+    )
+    if account is None:
+        raise ValueError("Account not found in this workspace")
+    return account_id
 
 
 class DebtCreate(BaseModel):
     name: str
     creditor: str
-    currency: str = "USD"
+    currency: str = "BRL"
     principal: Decimal
     outstanding_balance: Decimal
     interest_rate: Optional[Decimal] = None
@@ -48,7 +71,7 @@ class DebtUpdate(BaseModel):
 class DebtPaymentCreate(BaseModel):
     paid_on: date
     amount: Decimal
-    currency: str = "USD"
+    currency: str = "BRL"
     principal_amount: Optional[Decimal] = None
     interest_amount: Optional[Decimal] = None
     notes: Optional[str] = None
@@ -58,7 +81,7 @@ class DebtInstallmentCreate(BaseModel):
     number: int = Field(ge=1)
     due_date: date
     amount: Decimal
-    currency: str = "USD"
+    currency: str = "BRL"
     principal_amount: Optional[Decimal] = None
     interest_amount: Optional[Decimal] = None
 
@@ -102,13 +125,15 @@ async def create_debt(
     user_id: uuid.UUID,
     data: DebtCreate,
 ) -> Debt:
+    currency = _currency_brl(data.currency)
+    account_id = await _validated_account_id(session, workspace_id, data.account_id)
     debt = Debt(
         user_id=user_id,
         workspace_id=workspace_id,
-        account_id=data.account_id,
+        account_id=account_id,
         name=data.name,
         creditor=data.creditor,
-        currency=data.currency,
+        currency=currency,
         principal=data.principal,
         outstanding_balance=data.outstanding_balance,
         interest_rate=data.interest_rate,
@@ -180,12 +205,17 @@ async def add_payment(
     )
     if not debt:
         return None
+    if data.amount <= 0:
+        raise ValueError("Payment amount must be greater than zero")
+    payment_currency = _currency_brl(data.currency)
+    if payment_currency != (debt.currency or "BRL").upper():
+        raise ValueError("Payment currency must match debt currency")
     payment = DebtPayment(
         debt_id=debt.id,
         workspace_id=workspace_id,
         paid_on=data.paid_on,
         amount=data.amount,
-        currency=data.currency,
+        currency=payment_currency,
         principal_amount=data.principal_amount,
         interest_amount=data.interest_amount,
         notes=data.notes,
@@ -217,13 +247,16 @@ async def add_installment(
     )
     if not debt:
         return None
+    installment_currency = _currency_brl(data.currency)
+    if installment_currency != (debt.currency or "BRL").upper():
+        raise ValueError("Installment currency must match debt currency")
     row = DebtInstallment(
         debt_id=debt.id,
         workspace_id=workspace_id,
         number=data.number,
         due_date=data.due_date,
         amount=data.amount,
-        currency=data.currency,
+        currency=installment_currency,
         principal_amount=data.principal_amount,
         interest_amount=data.interest_amount,
     )

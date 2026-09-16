@@ -218,12 +218,14 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
     )
     duplicates = await _find_duplicates(session, document.workspace_id, document.account_id, rows)
     for row in rows:
+        row_currency = "BRL"
+        row_type = _normalize_txn_type(row.get("txn_type"), row["amount"])
         key = fingerprint(
             str(document.workspace_id),
             document.stored_object.sha256,
             str(row["competence_date"]),
             str(row["amount"]),
-            row["txn_type"],
+            row_type,
             row["description"],
             row.get("external_id") or "",
             row.get("locator") or "",
@@ -246,16 +248,16 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
             status="pending",
             description=row["description"][:500],
             amount=row["amount"],
-            currency=row["currency"] or "USD",
+            currency=row_currency,
             competence_date=row["competence_date"],
             payment_date=row.get("payment_date"),
-            txn_type=row["txn_type"],
+            txn_type=row_type,
             payee=row.get("payee"),
             external_id=row.get("external_id"),
             locator=row.get("locator"),
             confidence=row.get("confidence") or Decimal("1.0000"),
             duplicate_of_transaction_id=duplicates.get(
-                (row["competence_date"], row["amount"], row["currency"] or "USD")
+                (row["competence_date"], row["amount"], row_currency, row_type)
             ),
             suggested_category=suggestion["label"],
             suggestion_rationale=suggestion["rationale"],
@@ -319,10 +321,21 @@ async def _find_duplicates(
     existing = (await session.execute(query)).scalars().all()
     index: dict[tuple, uuid.UUID] = {}
     for txn in existing:
-        index[(txn.date, abs(txn.amount), txn.currency)] = txn.id
+        key = (
+            txn.date,
+            abs(txn.amount),
+            "BRL",
+            _normalize_txn_type(txn.type, txn.amount),
+        )
+        index[key] = txn.id
     found: dict[tuple, uuid.UUID] = {}
     for row in rows:
-        key = (row["competence_date"], row["amount"], row["currency"] or "USD")
+        key = (
+            row["competence_date"],
+            row["amount"],
+            "BRL",
+            _normalize_txn_type(row.get("txn_type"), row["amount"]),
+        )
         if key in index:
             found[key] = index[key]
     return found
@@ -386,12 +399,13 @@ async def decide_candidates(
 ) -> dict:
     if decision not in {"approve", "reject", "defer"}:
         raise ValueError("Decision must be approve, reject, or defer")
-    result = await session.execute(
-        select(ImportCandidate).where(
-            ImportCandidate.workspace_id == workspace_id,
-            ImportCandidate.id.in_(candidate_ids),
-        )
+    query = select(ImportCandidate).where(
+        ImportCandidate.workspace_id == workspace_id,
+        ImportCandidate.id.in_(candidate_ids),
     )
+    if decision == "approve":
+        query = query.with_for_update()
+    result = await session.execute(query)
     candidates = list(result.scalars().all())
     if not candidates:
         return {"updated": 0, "posted": 0}
@@ -460,7 +474,7 @@ async def _post_candidate(
         account_id=account_id,
         description=candidate.description,
         amount=candidate.amount,
-        currency=candidate.currency,
+        currency="BRL",
         date=candidate.competence_date,
         effective_date=candidate.payment_date or candidate.competence_date,
         type=candidate.txn_type,
@@ -474,6 +488,13 @@ async def _post_candidate(
     await session.flush()
     await stamp_primary_amount(session, user_id, txn)
     return txn
+
+
+def _normalize_txn_type(value: str | None, amount: Decimal) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"credit", "debit"}:
+        return normalized
+    return "credit" if amount > 0 else "debit"
 
 
 async def revert_import(

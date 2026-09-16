@@ -15,8 +15,10 @@ from decimal import Decimal
 from typing import TypeAlias
 
 import pyzipper
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
 from app.models.debt import Debt, DebtInstallment, DebtPayment
 from app.services import audit_service
 
@@ -48,6 +50,20 @@ def _parse_date(value: str | None):
     return date.fromisoformat(value[:10])
 
 
+async def _workspace_account_id(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    value: str | None,
+) -> uuid.UUID | None:
+    if not value:
+        return None
+    account_id = uuid.UUID(str(value))
+    account = await session.scalar(
+        select(Account.id).where(Account.id == account_id, Account.workspace_id == workspace_id)
+    )
+    return account_id if account is not None else None
+
+
 async def restore_workspace_archive(
     session: AsyncSession,
     *,
@@ -75,15 +91,16 @@ async def restore_workspace_archive(
         debt_id = uuid.UUID(str(row["id"]))
         if await session.get(Debt, debt_id):
             continue
+        account_id = await _workspace_account_id(session, workspace_id, row.get("account_id"))
         session.add(
             Debt(
                 id=debt_id,
                 user_id=user_id,
                 workspace_id=workspace_id,
-                account_id=uuid.UUID(row["account_id"]) if row.get("account_id") else None,
+                account_id=account_id,
                 name=row["name"],
                 creditor=row["creditor"],
-                currency=row.get("currency") or "USD",
+                currency="BRL",
                 principal=Decimal(str(row["principal"])),
                 outstanding_balance=Decimal(str(row["outstanding_balance"])),
                 interest_rate=Decimal(str(row["interest_rate"])) if row.get("interest_rate") is not None else None,
@@ -121,7 +138,7 @@ async def restore_workspace_archive(
                 amount=Decimal(str(row["amount"])),
                 principal_amount=Decimal(str(row["principal_amount"])) if row.get("principal_amount") is not None else None,
                 interest_amount=Decimal(str(row["interest_amount"])) if row.get("interest_amount") is not None else None,
-                currency=row.get("currency") or "USD",
+                currency="BRL",
                 status=row.get("status") or "pending",
             )
         )
@@ -141,7 +158,7 @@ async def restore_workspace_archive(
                 workspace_id=workspace_id,
                 paid_on=_parse_date(row["paid_on"]),
                 amount=Decimal(str(row["amount"])),
-                currency=row.get("currency") or "USD",
+                currency="BRL",
                 principal_amount=Decimal(str(row["principal_amount"])) if row.get("principal_amount") is not None else None,
                 interest_amount=Decimal(str(row["interest_amount"])) if row.get("interest_amount") is not None else None,
                 notes=row.get("notes"),

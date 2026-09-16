@@ -420,7 +420,10 @@ async def debts_create(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    return await create_debt(session, ctx.workspace.id, ctx.user_id, data)
+    try:
+        return await create_debt(session, ctx.workspace.id, ctx.user_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/api/debts/{debt_id}", response_model=DebtRead)
@@ -443,7 +446,10 @@ async def debts_payment(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    payment = await add_payment(session, ctx.workspace.id, ctx.user_id, debt_id, data)
+    try:
+        payment = await add_payment(session, ctx.workspace.id, ctx.user_id, debt_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not payment:
         raise HTTPException(status_code=404, detail="Debt not found")
     return {"id": payment.id, "outstanding_balance": str(payment.debt.outstanding_balance) if payment.debt else None}
@@ -456,7 +462,10 @@ async def debts_installment(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    row = await add_installment(session, ctx.workspace.id, debt_id, data)
+    try:
+        row = await add_installment(session, ctx.workspace.id, debt_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not row:
         raise HTTPException(status_code=404, detail="Debt not found")
     return {"id": row.id}

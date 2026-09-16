@@ -216,7 +216,7 @@ async def test_backup_includes_intelligence_files_and_restore_is_additive(
         json={
             "name": "Student loan",
             "creditor": "Bank",
-            "currency": "USD",
+            "currency": "BRL",
             "principal": "10000.00",
             "outstanding_balance": "8000.00",
             "strategy_assumptions": "Ignores tax effects; not a recommendation.",

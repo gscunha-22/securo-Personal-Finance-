@@ -658,12 +658,23 @@ async def get_summary(
     ) or 0
     debt_total = None
     if debt_n:
-        debt_total = await session.scalar(
-            select(func.coalesce(func.sum(Debt.outstanding_balance), 0)).where(
-                Debt.workspace_id == workspace_id,
-                Debt.status == "active",
+        debt_rows = (
+            await session.execute(
+                select(Debt.outstanding_balance, Debt.currency).where(
+                    Debt.workspace_id == workspace_id,
+                    Debt.status == "active",
+                )
             )
-        )
+        ).all()
+        debt_total = Decimal("0")
+        for amount, currency in debt_rows:
+            converted, _ = await convert(
+                session,
+                Decimal(str(amount)),
+                currency or "BRL",
+                primary_currency,
+            )
+            debt_total += Decimal(str(converted))
     last_doc = await session.scalar(
         select(func.max(VaultDocument.created_at)).where(VaultDocument.workspace_id == workspace_id)
     )
