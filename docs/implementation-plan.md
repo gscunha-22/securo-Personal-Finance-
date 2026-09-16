@@ -9,6 +9,9 @@ UI copy or code from that product are copied here.
 
 - Keep the existing stack (FastAPI, SQLAlchemy 2 async, Alembic, React 19 +
   Vite, PostgreSQL, Redis, Celery). Do not rewrite to Next.js.
+- Cloud target, if Vercel and Neon are used: SPA on Vercel, Lakebase Postgres
+  on Neon, FastAPI+Celery+Redis on persistent compute. See
+  [architecture-vercel-neon.md](architecture-vercel-neon.md).
 - `PRIVATE_INSTANCE` defaults to false so existing registration tests stay
   valid. Operators turn it on for a single-owner deploy.
 - Dual auth: existing JWT bearer (tests and non-browser clients) plus httpOnly
