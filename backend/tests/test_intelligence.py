@@ -1,5 +1,6 @@
-from datetime import timedelta, timezone
-from datetime import datetime
+import uuid
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.integrations.readonly import WriteAttemptError, assert_readonly, ingest_mock_messages
+from app.models.transaction import Transaction
 from app.models.vault import SourceConnection
 from app.services.extraction import detect_mime, sha256_hex
 from app.services.vault_service import ai_validate_suggestion
