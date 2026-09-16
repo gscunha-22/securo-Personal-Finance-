@@ -1,5 +1,8 @@
 from decimal import Decimal
 
+import pytest
+from httpx import AsyncClient
+
 from app.services.renegotiation import (
     CashSnapshot,
     DebtSnapshot,
@@ -11,24 +14,34 @@ from app.services.renegotiation import (
 )
 
 
-def _debt(**kwargs) -> DebtSnapshot:
-    defaults = dict(
-        id="d1",
-        creditor="Bank",
-        product="rotativo",
-        payoff=Decimal("12000"),
-        rate=Decimal("14"),
+def _debt(
+    *,
+    id: str = "d1",
+    creditor: str = "Bank",
+    product: str = "rotativo",
+    payoff: Decimal = Decimal("12000"),
+    rate: Decimal | None = Decimal("14"),
+    installment: Decimal = Decimal("360"),
+    term: int | None = None,
+    delinquency_status: str = "atraso",
+    dpd: int = 90,
+    notes: str = "",
+) -> DebtSnapshot:
+    return DebtSnapshot(
+        id=id,
+        creditor=creditor,
+        product=product,
+        payoff=payoff,
+        rate=rate,
         cet_annual_informed=None,
-        installment=Decimal("360"),
-        term=None,
-        delinquency_status="atraso",
-        dpd=90,
+        installment=installment,
+        term=term,
+        delinquency_status=delinquency_status,
+        dpd=dpd,
         penalty=Decimal("0"),
         guarantee="nenhuma",
-        notes="",
+        notes=notes,
     )
-    defaults.update(kwargs)
-    return DebtSnapshot(**defaults)
 
 
 def test_cet_annual_from_monthly_is_compound_not_simple():
@@ -191,10 +204,6 @@ def test_five_gates_pass_only_with_documented_cheaper_offer_and_s7():
     assert all(item["ok"] for item in after["gates"]["items"])
     assert after["gates"]["ready"] is True
     assert after["offers"][0]["material"] is True
-
-
-import pytest
-from httpx import AsyncClient
 
 
 @pytest.mark.asyncio

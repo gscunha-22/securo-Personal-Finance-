@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { intelligence } from '@/lib/api'
@@ -158,7 +158,7 @@ export default function DebtsPage() {
     onSuccess: (row) => setAmort(row),
   })
 
-  const script = useMemo(() => {
+  const script = (() => {
     if (!plan?.bank_script_facts.length) return t('intelligence.bankScriptEmpty')
     const lines = plan.bank_script_facts.map((row) =>
       t('intelligence.bankScriptLine', {
@@ -172,7 +172,7 @@ export default function DebtsPage() {
       }),
     )
     return `${t('intelligence.bankScriptIntro')}\n${lines.join('\n')}${t('intelligence.bankScriptOutro')}`
-  }, [plan, t, currency])
+  })()
 
   const onExample = () => {
     const replace = Boolean(plan?.debts.length)
