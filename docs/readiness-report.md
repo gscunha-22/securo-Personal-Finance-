@@ -32,7 +32,7 @@ publication**, not for staging review.
 | Secrets not committed | `.env.example` empty; gitleaks job | met |
 | Playwright E2E | `e2e/tests/intelligence.spec.ts` in CI | met |
 | Alembic against Postgres | CI job `alembic upgrade head` on service Postgres | met |
-| Live Google/Microsoft OAuth | Owner must create clients | pending owner |
+| Live Google/Microsoft OAuth | Connect + `/sources/callback` in code; owner must create clients | pending owner |
 | Live S3 credentials | Neon bucket `securo-vault` on `us-east-2`; secrets only in console/compute env | provisioned; copy secrets to persistent compute |
 | Helm / Compose Neon overlay | `values.yaml` S3 + `docker-compose.neon.yml`; Tesseract eng+por in the API image | met (code); public compute still pending owner tokens |
 | Auto-deploy | Not performed | met (not done) |

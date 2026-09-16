@@ -26,7 +26,7 @@ Scopes, when the owner supplies OAuth clients:
 - Sheets: `spreadsheets.readonly`
 - Outlook: `Mail.Read`
 
-Write methods raise. Tokens are encrypted at rest and never logged.
+Write methods raise. Tokens are encrypted at rest and never logged. Sources → Connect starts consent once those clients exist; the SPA returns at `/sources/callback`.
 
 ## Jobs
 

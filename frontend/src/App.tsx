@@ -44,6 +44,7 @@ const DocumentsPage = lazy(() => import('@/pages/documents'))
 const ReviewPage = lazy(() => import('@/pages/review'))
 const DebtsPage = lazy(() => import('@/pages/debts'))
 const SourcesPage = lazy(() => import('@/pages/sources'))
+const SourcesCallbackPage = lazy(() => import('@/pages/sources-callback'))
 const ProcessingPage = lazy(() => import('@/pages/processing'))
 const AuditPage = lazy(() => import('@/pages/audit'))
 const OAuthCallbackPage = lazy(() => import('@/pages/oauth-callback'))
@@ -100,6 +101,7 @@ function App() {
                   <Route path="/accounts/:id" element={<ModuleRoute module="accounts"><AccountDetailPage /></ModuleRoute>} />
                   <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
                   <Route path="/enable-banking" element={<OAuthCallbackPage />} />
+                  <Route path="/sources/callback" element={<SourcesCallbackPage />} />
                   <Route path="/import" element={<ModuleRoute module="import"><ImportPage /></ModuleRoute>} />
                   <Route path="/documents" element={<ModuleRoute module="documents"><DocumentsPage /></ModuleRoute>} />
                   <Route path="/review" element={<ModuleRoute module="review"><ReviewPage /></ModuleRoute>} />
