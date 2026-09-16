@@ -2,10 +2,9 @@ import asyncio
 import logging
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.worker import celery_app
-from app.core.config import get_settings
+from app.core.database import make_worker_session_maker
 from app.models.user import User
 from app.services import recurring_transaction_service
 
@@ -14,9 +13,7 @@ logger = logging.getLogger(__name__)
 
 def _make_session_maker():
     """Create a fresh engine+session for the Celery worker event loop."""
-    settings = get_settings()
-    engine = create_async_engine(settings.database_url)
-    return engine, async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    return make_worker_session_maker()
 
 
 async def _generate_all() -> int:

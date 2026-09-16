@@ -43,6 +43,12 @@ Write methods raise. Tokens are encrypted at rest and never logged.
 - `/api/health` — process is up
 - `/api/ready` — Postgres, Redis and storage
 
+Cloud topology (Vercel SPA + Neon Postgres + persistent API):
+[architecture-vercel-neon.md](architecture-vercel-neon.md). Code hooks:
+`DATABASE_URL` (pooled) + `DATABASE_URL_DIRECT` (Alembic) on the API;
+`API_ORIGIN` on the Vercel project (`frontend/vercel.ts` rewrites `/api`).
+Do not auto-deploy.
+
 ## Do not publish until
 
 Live OAuth consent works, backup/restore has been run on the real volume, and the Playwright plus API journeys are green on that deploy. See `docs/readiness-report.md`.
