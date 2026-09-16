@@ -386,7 +386,7 @@ async def test_inferred_recurrence_is_not_materialized(
         },
     )
     assert decision.status_code == 200
-    await session.expire_all()
+    session.expire_all()
     recorded = await session.scalar(select(func.count()).select_from(HumanDecision))
     assert int(recorded or 0) >= 1
     stored = await session.get(ImportCandidate, UUID(candidates[0]["id"]))

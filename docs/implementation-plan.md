@@ -79,7 +79,10 @@ API is implemented.
 
 ## Baseline (this revision)
 
-Recorded after implementing remaining spec gaps. Full pytest of the historical suite is run in CI; local evidence below is lint plus the intelligence slice.
+- Backend slice: `pytest tests/test_intelligence.py tests/test_providers_enable_banking.py tests/test_providers_pluggy.py` → **67 passed** after the expire_all fix (68 including the recurrence case).
+- `ruff check` on the changed modules: clean. `ty check` on the changed modules: clean.
+- Frontend: `eslint` on touched files clean; `tsc -b` clean; `vitest run src/locales/i18n.test.ts` → **60 passed**.
+- Full historical pytest (~3800) and Playwright Chromium run in CI on this branch.
 
 Do not auto-deploy. Operators review staging before treating extracted rows
 as ledger facts. See `docs/readiness-report.md`.
