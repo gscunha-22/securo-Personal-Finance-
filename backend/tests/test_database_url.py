@@ -101,6 +101,8 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     assert "index.html" in source
     assert "throw new Error" in source
     assert 'framework: "vite"' in source
+    assert "deploymentEnabled" in source
+    assert "main: false" in source
     assert "nextjs" not in source.lower()
     assert not (REPO_ROOT / "frontend" / "vercel.json").exists()
 

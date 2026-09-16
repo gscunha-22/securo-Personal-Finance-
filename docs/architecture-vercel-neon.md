@@ -265,7 +265,10 @@ flowchart LR
 - CSP atual (`connect-src 'self'`) permanece válida com o rewrite.
 - OAuth readonly não muda de escopo.
 - Produção não faz git-deploy automático a partir de `main` sem
-  autorização explícita.
+  autorização explícita. `frontend/vercel.ts` desliga
+  `git.deploymentEnabled.main`; preview de branch continua possível
+  quando `API_ORIGIN` está definido. Promoção para o domínio de
+  produção é explícita.
 - Dados financeiros em Neon/Vercel/S3 são dados em processadores
   terceiros. Quem exigir air-gap continua no Helm/Compose; esta
   arquitetura é a variante nuvem do mesmo código, não um segundo produto.

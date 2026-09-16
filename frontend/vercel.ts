@@ -11,6 +11,12 @@ const csp =
 
 export const config = {
   framework: "vite",
+  // Production traffic is an explicit promote, never a git push to main.
+  git: {
+    deploymentEnabled: {
+      main: false,
+    },
+  },
   headers: [
     {
       source: "/(.*)",
