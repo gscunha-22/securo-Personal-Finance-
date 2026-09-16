@@ -102,6 +102,8 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "privateInstance" in values
     assert "gscunha-22/securo-backend" in values
     assert "securo-finance/securo-backend" not in values
+    assert "googleClientId" in values
+    assert "microsoftClientSecret" in values
     overlay = (REPO_ROOT / "docker-compose.neon.yml").read_text(encoding="utf-8")
     assert "STORAGE_PROVIDER" in overlay
     assert "DATABASE_URL_DIRECT" in overlay

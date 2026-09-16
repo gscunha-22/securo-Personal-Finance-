@@ -57,7 +57,7 @@ global:
   existingSecret: "my-securo-secrets"
 ```
 
-The secret must contain the corresponding keys (e.g., `SECRET_KEY`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, `STORAGE_S3_ACCESS_KEY`, `AGENTS_OPENAI_API_KEY` — Helm maps `camelCase` values.yaml keys to `UPPER_SNAKE_CASE`).
+The secret must contain the corresponding keys (e.g., `SECRET_KEY`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, `STORAGE_S3_ACCESS_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `AGENTS_OPENAI_API_KEY` — Helm maps `camelCase` values.yaml keys to `UPPER_SNAKE_CASE`).
 For Neon, `databaseUrl` is the pooled (`-pooler`) URL and `databaseUrlDirect` is the compute endpoint used by the migration Job.
 For an S3 vault, set `config.storageProvider` to `s3` and put access keys in the Secret (or `existingSecret`). Then disable `persistence.attachments` so originals are not expected on a local volume.
 

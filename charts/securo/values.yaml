@@ -48,6 +48,13 @@ secret:
   storageS3AccessKey: ""
   storageS3SecretKey: ""
 
+  # Read-only Gmail / Sheets / Outlook. Empty until the operator creates clients.
+  googleClientId: ""
+  googleClientSecret: ""
+  microsoftClientId: ""
+  microsoftClientSecret: ""
+  aiProviderApiKey: ""
+
 # Non-sensitive configuration
 config:
   debug: "false"
@@ -94,6 +101,7 @@ config:
   privateInstance: "false"
   # Bundled nginx, or the Vercel /api rewrite, counts as one trusted hop.
   trustedProxyHops: "0"
+  aiProviderBaseUrl: ""
   agentsKnowledgeStoragePath: "/app/data/agent_knowledge"
 
   # Agents feature
