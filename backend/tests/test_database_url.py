@@ -192,6 +192,7 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "--proxy-headers" in starter
     assert "TRUSTED_PROXY_HOPS" in starter
     assert "--forwarded-allow-ips='*'" in starter
+    assert "${RENDER:-}" in starter
     worker_boot = (REPO_ROOT / "backend" / "scripts" / "start-worker.sh").read_text(encoding="utf-8")
     assert "alembic upgrade head" in worker_boot
     assert "celery -A app.worker" in worker_boot
@@ -228,6 +229,12 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert render.count("GOOGLE_CLIENT_ID") >= 3
     assert render.count("FRONTEND_URL") >= 3
     assert "Manual Deploy" in render
+    header = render.split("databases:")[0]
+    assert "securo-redis" in header
+    assert "securo-api" in header
+    assert "securo-worker" in header
+    assert "securo-beat" in header
+    assert "Resume ALL" in header
     intelligence_tasks = (REPO_ROOT / "backend" / "app" / "tasks" / "intelligence_tasks.py").read_text(
         encoding="utf-8"
     )
