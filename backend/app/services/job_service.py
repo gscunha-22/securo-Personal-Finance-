@@ -4,6 +4,7 @@ from typing import Optional
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.core.privacy import sanitize_error
 from app.models.processing_job import JobAttempt, ProcessingJob
@@ -84,21 +85,48 @@ async def list_jobs(
     session: AsyncSession,
     workspace_id: uuid.UUID,
     status: Optional[str] = None,
+    *,
+    limit: int = 200,
+    offset: int = 0,
 ) -> list[ProcessingJob]:
-    query = select(ProcessingJob).where(ProcessingJob.workspace_id == workspace_id)
+    query = (
+        select(ProcessingJob)
+        .where(ProcessingJob.workspace_id == workspace_id)
+        .options(
+            load_only(
+                ProcessingJob.job_type,
+                ProcessingJob.status,
+                ProcessingJob.attempts,
+                ProcessingJob.error,
+                ProcessingJob.created_at,
+                ProcessingJob.started_at,
+                ProcessingJob.finished_at,
+            )
+        )
+    )
     if status:
         query = query.where(ProcessingJob.status == status)
-    query = query.order_by(ProcessingJob.created_at.desc()).limit(200)
+    query = query.order_by(ProcessingJob.created_at.desc()).limit(limit).offset(offset)
     return list((await session.execute(query)).scalars().all())
 
 
 async def recover_abandoned(session: AsyncSession) -> int:
     now = datetime.now(timezone.utc)
     result = await session.execute(
-        select(ProcessingJob).where(
+        select(ProcessingJob)
+        .where(
             ProcessingJob.status == "running",
             ProcessingJob.lock_expires_at.is_not(None),
             ProcessingJob.lock_expires_at < now,
+        )
+        .options(
+            load_only(
+                ProcessingJob.status,
+                ProcessingJob.locked_at,
+                ProcessingJob.lock_expires_at,
+                ProcessingJob.error,
+                ProcessingJob.next_retry_at,
+            )
         )
     )
     count = 0

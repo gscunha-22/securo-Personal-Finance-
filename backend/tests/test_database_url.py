@@ -176,6 +176,17 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "process_sync" in dispatch
     vault = (REPO_ROOT / "backend" / "app" / "services" / "vault_service.py").read_text(encoding="utf-8")
     assert "job_dispatch" in vault
+    assert "latest_interpretation_versions" in vault
+    assert "list_extracted_fields" in vault
+    assert "encrypted_refresh_token" not in (REPO_ROOT / "backend" / "app" / "api" / "intelligence.py").read_text(
+        encoding="utf-8"
+    ).split("async def list_sources")[1].split("async def connect_source")[0]
+    neon_ts = (REPO_ROOT / "neon.ts").read_text(encoding="utf-8")
+    assert "defineConfig" in neon_ts
+    assert "preview.functions" not in neon_ts
+    assert "functions:" not in neon_ts
+    assert "branch.exists" in neon_ts
+    assert "ttl" in neon_ts
     worker = (REPO_ROOT / "backend" / "app" / "worker.py").read_text(encoding="utf-8")
     assert (
         '"task": "app.tasks.intelligence_tasks.recover_abandoned_jobs",\n        "schedule": 60,'

@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.core.database import get_async_session
 from app.core.privacy import content_disposition, encrypt_secret
@@ -156,10 +157,8 @@ class AiSuggestBody(BaseModel):
     date: Optional[date] = None
 
 
-def _document_read(doc: VaultDocument) -> DocumentRead:
+def _document_read(doc: VaultDocument, interpretation_version: int = 1) -> DocumentRead:
     stored = doc.stored_object
-    versions = getattr(doc, "versions", None) or []
-    latest = max((v.version_number for v in versions), default=1)
     return DocumentRead(
         id=doc.id,
         document_type=doc.document_type,
@@ -169,9 +168,18 @@ def _document_read(doc: VaultDocument) -> DocumentRead:
         mime=stored.detected_mime,
         sha256=stored.sha256,
         byte_size=stored.byte_size,
-        interpretation_version=latest,
+        interpretation_version=interpretation_version,
         created_at=doc.created_at,
     )
+
+
+async def _document_reads(
+    session: AsyncSession, docs: list[VaultDocument]
+) -> list[DocumentRead]:
+    versions = await vault_service.latest_interpretation_versions(
+        session, [doc.id for doc in docs]
+    )
+    return [_document_read(doc, versions.get(doc.id, 1)) for doc in docs]
 
 
 @router.post("/api/documents", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
@@ -199,16 +207,21 @@ async def upload_document(
     stored = await vault_service.get_document(session, ctx.workspace.id, document.id)
     if stored is None:
         raise HTTPException(status_code=500, detail="Document was stored but could not be read")
-    return _document_read(stored)
+    reads = await _document_reads(session, [stored])
+    return reads[0]
 
 
 @router.get("/api/documents", response_model=list[DocumentRead])
 async def list_documents(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
+    limit: int = Query(200, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
-    docs = await vault_service.list_documents(session, ctx.workspace.id)
-    return [_document_read(doc) for doc in docs]
+    docs = await vault_service.list_documents(
+        session, ctx.workspace.id, limit=limit, offset=offset
+    )
+    return await _document_reads(session, docs)
 
 
 @router.get("/api/documents/{document_id}", response_model=DocumentRead)
@@ -220,7 +233,8 @@ async def get_document(
     document = await vault_service.get_document(session, ctx.workspace.id, document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    return _document_read(document)
+    reads = await _document_reads(session, [document])
+    return reads[0]
 
 
 @router.get("/api/documents/{document_id}/file")
@@ -249,24 +263,21 @@ async def document_fields(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    document = await vault_service.get_document(session, ctx.workspace.id, document_id)
-    if not document:
+    fields = await vault_service.list_extracted_fields(session, ctx.workspace.id, document_id)
+    if fields is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    fields = []
-    for extraction in document.extractions:
-        for field in extraction.fields:
-            fields.append(
-                {
-                    "name": field.name,
-                    "value": field.human_correction or field.value,
-                    "extracted_value": field.value,
-                    "locator": field.locator,
-                    "method": field.method,
-                    "confidence": str(field.confidence),
-                    "human_correction": field.human_correction,
-                }
-            )
-    return fields
+    return [
+        {
+            "name": field.name,
+            "value": field.human_correction or field.value,
+            "extracted_value": field.value,
+            "locator": field.locator,
+            "method": field.method,
+            "confidence": str(field.confidence),
+            "human_correction": field.human_correction,
+        }
+        for field in fields
+    ]
 
 
 @router.get("/api/review/candidates", response_model=list[CandidateRead])
@@ -274,8 +285,12 @@ async def list_candidates(
     status: Optional[str] = Query(None),
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
+    limit: int = Query(500, ge=1, le=500),
+    offset: int = Query(0, ge=0),
 ):
-    return await vault_service.list_candidates(session, ctx.workspace.id, status)
+    return await vault_service.list_candidates(
+        session, ctx.workspace.id, status, limit=limit, offset=offset
+    )
 
 
 @router.post("/api/review/decisions")
@@ -317,8 +332,12 @@ async def list_jobs(
     status: Optional[str] = Query(None),
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
+    limit: int = Query(200, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
-    return await job_service.list_jobs(session, ctx.workspace.id, status)
+    return await job_service.list_jobs(
+        session, ctx.workspace.id, status, limit=limit, offset=offset
+    )
 
 
 @router.post("/api/jobs/{job_id}/retry")
@@ -343,12 +362,24 @@ async def retry_job(
 async def list_audit(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
+    limit: int = Query(200, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
     result = await session.execute(
         select(AuditEvent)
         .where(AuditEvent.workspace_id == ctx.workspace.id)
+        .options(
+            load_only(
+                AuditEvent.action,
+                AuditEvent.entity_type,
+                AuditEvent.entity_id,
+                AuditEvent.summary,
+                AuditEvent.created_at,
+            )
+        )
         .order_by(AuditEvent.created_at.desc())
-        .limit(200)
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 
@@ -357,6 +388,8 @@ async def list_audit(
 async def list_notifications(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
+    limit: int = Query(50, ge=1, le=50),
+    offset: int = Query(0, ge=0),
 ):
     result = await session.execute(
         select(AppNotification)
@@ -364,8 +397,18 @@ async def list_notifications(
             AppNotification.workspace_id == ctx.workspace.id,
             AppNotification.user_id == ctx.user_id,
         )
+        .options(
+            load_only(
+                AppNotification.kind,
+                AppNotification.title,
+                AppNotification.body,
+                AppNotification.is_read,
+                AppNotification.created_at,
+            )
+        )
         .order_by(AppNotification.created_at.desc())
-        .limit(50)
+        .limit(limit)
+        .offset(offset)
     )
     return [
         {
@@ -389,7 +432,19 @@ async def list_sources(
     from app.integrations.readonly import READ_ONLY_SCOPES
 
     result = await session.execute(
-        select(SourceConnection).where(SourceConnection.workspace_id == ctx.workspace.id)
+        select(SourceConnection)
+        .where(SourceConnection.workspace_id == ctx.workspace.id)
+        .options(
+            load_only(
+                SourceConnection.provider,
+                SourceConnection.display_name,
+                SourceConnection.status,
+                SourceConnection.granted_scopes,
+                SourceConnection.last_sync_at,
+                SourceConnection.last_sync_result,
+                SourceConnection.last_error,
+            )
+        )
     )
     rows = list(result.scalars().all())
     settings = get_settings()
@@ -617,8 +672,10 @@ async def validate_ai_suggestion(
 async def debts_list(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
+    limit: int = Query(200, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
-    return await list_debts(session, ctx.workspace.id)
+    return await list_debts(session, ctx.workspace.id, limit=limit, offset=offset)
 
 
 @router.post("/api/debts", response_model=DebtRead, status_code=status.HTTP_201_CREATED)

@@ -540,3 +540,51 @@ async def test_upload_rejects_foreign_account(
         data={"account_id": "00000000-0000-0000-0000-000000000001"},
     )
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_list_endpoints_omit_wide_columns_and_honor_limit(
+    client: AsyncClient, auth_headers, test_account, vault_dir
+):
+    first = (
+        "date,description,amount,type\n"
+        "2026-02-01,Alpha shop,10.00,debit\n"
+    ).encode("utf-8")
+    second = (
+        "date,description,amount,type\n"
+        "2026-02-02,Beta shop,11.00,debit\n"
+    ).encode("utf-8")
+    for name, payload in (("alpha.csv", first), ("beta.csv", second)):
+        uploaded = await client.post(
+            "/api/documents",
+            headers=auth_headers,
+            files={"file": (name, payload, "text/csv")},
+            data={"account_id": str(test_account.id)},
+        )
+        assert uploaded.status_code == 201, uploaded.text
+
+    listed = (await client.get("/api/documents?limit=1", headers=auth_headers)).json()
+    assert len(listed) == 1
+    assert "storage_key" not in listed[0]
+    assert "extra" not in listed[0]
+
+    full = (await client.get("/api/documents", headers=auth_headers)).json()
+    assert len(full) >= 2
+
+    jobs = (await client.get("/api/jobs", headers=auth_headers)).json()
+    assert jobs
+    assert "payload" not in jobs[0]
+    assert "idempotency_key" not in jobs[0]
+
+    candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    assert candidates
+    assert all("extra" not in row for row in candidates)
+    bounded = (await client.get("/api/review/candidates?limit=1", headers=auth_headers)).json()
+    assert len(bounded) == 1
+
+    sources = (await client.get("/api/sources", headers=auth_headers)).json()
+    assert sources
+    assert all("encrypted_refresh_token" not in row for row in sources)
+
+    audit = (await client.get("/api/audit", headers=auth_headers)).json()
+    assert all("extra" not in row for row in audit)

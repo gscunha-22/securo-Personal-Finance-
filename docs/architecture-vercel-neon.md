@@ -165,9 +165,26 @@ Os projetos `connector-command-center` e `kimi-memory` **não** são desta
 aplicação; não reutilizar as strings deles.
 
 Não usar Neon Functions como substituto do FastAPI neste ciclo: o app é
-um processo ASGI com worker lado a lado, não um handler isolado. Functions
-ficam como opção futura só para um sidecar de longa duração (SSE/MCP),
-não para o livro.
+um processo ASGI com worker lado a lado, não um handler isolado. Confirmado
+neste projeto (`rough-dream-93584716`, `us-east-2`): `list_functions` na
+branch `main` devolve lista vazia; custom domains de Functions não estão
+disponíveis. Functions ficam de fora do `neon.ts` de propósito — sidecar
+SSE/MCP só se um dia o FastAPI persistente não chegar, nunca para o livro.
+
+`neon.ts` na raiz só barateia **branches filhas novas** (TTL 7d, scale-to-zero
+em 5m, teto 1 CU). Não altera o compute de `main`. Não correr
+`neon config apply` contra produção.
+
+`pg_stat_statements` está ligado em `securo` para medir egress. As listas
+de documentos, candidatos, jobs, auditoria, fontes e dívidas selecionam só
+as colunas da resposta e têm `limit`/`offset` (teto 200/500). O download do
+original e os campos extraídos não carregam `raw_text` nem versões. O GET
+de fontes não lê `encrypted_refresh_token`.
+
+Branches extra neste projeto (`vercel-dev`,
+`preview/cursor/land-architecture-ci-0b4a`, `backup-restore-verify`) **não**
+são o destino do Render. O Blueprint usa só `main` /
+`br-autumn-brook-b5clfx9c`, database `securo`.
 
 ### Compute persistente (plano de controle)
 
@@ -216,6 +233,7 @@ Já no tree, para o operador ligar os três planos sem reescrever o app:
 | Alembic no endpoint direto | `DATABASE_URL_DIRECT`; se vazio e o host for pooler, deriva o compute tirando `-pooler` |
 | Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
 | SPA Vercel | `vercel.ts` na raiz e `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js); `git.deploymentEnabled: false` até o operador promover |
+| Neon IaC | `neon.ts`: TTL e scale-to-zero só em branches filhas novas; **sem** `preview.functions` |
 | Helm | `secret.databaseUrlDirect` → `DATABASE_URL_DIRECT`; `config.storageProvider` / `secret.storageS3*` para o cofre S3; `config.privateInstance` e `trustedProxyHops` |
 | Compose Neon | `docker-compose.neon.yml` overlay: Postgres local desligado, `DATABASE_URL` pooled + direto, `STORAGE_PROVIDER=s3`. `docker-compose.prod.yml` constrói **este** repositório (`--build`), não puxa `ghcr.io/securo-finance`. |
 | Backup | `scripts/backup-instance.sh` / `restore-instance.sh` usam `DATABASE_URL_DIRECT` e recusam tar com `..`/symlink |

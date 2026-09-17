@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 
 from app.core.config import get_settings
 from app.models.account import Account
@@ -466,16 +466,18 @@ async def _find_duplicates(
     if not rows:
         return {}
     dates = {row["competence_date"] for row in rows}
-    query = select(Transaction).where(
+    query = select(
+        Transaction.id, Transaction.date, Transaction.amount, Transaction.currency
+    ).where(
         Transaction.workspace_id == workspace_id,
         Transaction.date.in_(dates),
     )
     if account_id:
         query = query.where(Transaction.account_id == account_id)
-    existing = (await session.execute(query)).scalars().all()
+    existing = (await session.execute(query)).all()
     index: dict[tuple, uuid.UUID] = {}
-    for txn in existing:
-        index[(txn.date, abs(txn.amount), txn.currency)] = txn.id
+    for txn_id, txn_date, amount, currency in existing:
+        index[(txn_date, abs(amount), currency)] = txn_id
     found: dict[tuple, uuid.UUID] = {}
     for row in rows:
         key = (row["competence_date"], row["amount"], row["currency"] or "USD")
@@ -484,13 +486,40 @@ async def _find_duplicates(
     return found
 
 
-async def list_documents(session: AsyncSession, workspace_id: uuid.UUID) -> list[VaultDocument]:
+async def latest_interpretation_versions(
+    session: AsyncSession, document_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    if not document_ids:
+        return {}
+    rows = await session.execute(
+        select(DocumentVersion.document_id, func.max(DocumentVersion.version_number))
+        .where(DocumentVersion.document_id.in_(document_ids))
+        .group_by(DocumentVersion.document_id)
+    )
+    return {document_id: version_number for document_id, version_number in rows.all()}
+
+
+async def list_documents(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    limit: int = 200,
+    offset: int = 0,
+) -> list[VaultDocument]:
     result = await session.execute(
         select(VaultDocument)
         .where(VaultDocument.workspace_id == workspace_id)
-        .options(selectinload(VaultDocument.stored_object), selectinload(VaultDocument.versions))
+        .options(
+            selectinload(VaultDocument.stored_object).load_only(
+                StoredObject.original_filename,
+                StoredObject.detected_mime,
+                StoredObject.sha256,
+                StoredObject.byte_size,
+            )
+        )
         .order_by(VaultDocument.created_at.desc())
-        .limit(200)
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 
@@ -501,34 +530,89 @@ async def get_document(
     return await session.scalar(
         select(VaultDocument)
         .where(VaultDocument.id == document_id, VaultDocument.workspace_id == workspace_id)
-        .options(
-            selectinload(VaultDocument.stored_object),
-            selectinload(VaultDocument.extractions).selectinload(DocumentExtraction.fields),
-            selectinload(VaultDocument.candidates),
-            selectinload(VaultDocument.versions),
+        .options(selectinload(VaultDocument.stored_object))
+    )
+
+
+async def list_extracted_fields(
+    session: AsyncSession, workspace_id: uuid.UUID, document_id: uuid.UUID
+) -> Optional[list[ExtractedField]]:
+    exists = await session.scalar(
+        select(VaultDocument.id).where(
+            VaultDocument.id == document_id, VaultDocument.workspace_id == workspace_id
         )
     )
+    if exists is None:
+        return None
+    result = await session.execute(
+        select(ExtractedField)
+        .join(DocumentExtraction, ExtractedField.extraction_id == DocumentExtraction.id)
+        .where(DocumentExtraction.document_id == document_id)
+        .options(
+            load_only(
+                ExtractedField.name,
+                ExtractedField.value,
+                ExtractedField.locator,
+                ExtractedField.method,
+                ExtractedField.confidence,
+                ExtractedField.human_correction,
+            )
+        )
+        .order_by(DocumentExtraction.created_at, ExtractedField.created_at)
+    )
+    return list(result.scalars().all())
 
 
 async def download_original(
     session: AsyncSession, workspace_id: uuid.UUID, document_id: uuid.UUID
 ) -> tuple[StoredObject, bytes]:
-    document = await get_document(session, workspace_id, document_id)
-    if not document:
+    stored = await session.scalar(
+        select(StoredObject)
+        .join(VaultDocument, VaultDocument.stored_object_id == StoredObject.id)
+        .where(VaultDocument.id == document_id, VaultDocument.workspace_id == workspace_id)
+    )
+    if stored is None:
         raise LookupError("Document not found")
-    data = await get_storage_provider().download(document.stored_object.storage_key)
-    return document.stored_object, data
+    data = await get_storage_provider().download(stored.storage_key)
+    return stored, data
 
 
 async def list_candidates(
     session: AsyncSession,
     workspace_id: uuid.UUID,
     status: str | None = None,
+    *,
+    limit: int = 500,
+    offset: int = 0,
 ) -> list[ImportCandidate]:
-    query = select(ImportCandidate).where(ImportCandidate.workspace_id == workspace_id)
+    query = (
+        select(ImportCandidate)
+        .where(ImportCandidate.workspace_id == workspace_id)
+        .options(
+            load_only(
+                ImportCandidate.document_id,
+                ImportCandidate.selected,
+                ImportCandidate.status,
+                ImportCandidate.description,
+                ImportCandidate.amount,
+                ImportCandidate.currency,
+                ImportCandidate.competence_date,
+                ImportCandidate.payment_date,
+                ImportCandidate.txn_type,
+                ImportCandidate.payee,
+                ImportCandidate.locator,
+                ImportCandidate.confidence,
+                ImportCandidate.duplicate_of_transaction_id,
+                ImportCandidate.suggested_category,
+                ImportCandidate.suggestion_rationale,
+                ImportCandidate.suggestion_confidence,
+                ImportCandidate.posted_transaction_id,
+            )
+        )
+    )
     if status:
         query = query.where(ImportCandidate.status == status)
-    query = query.order_by(ImportCandidate.created_at.desc()).limit(500)
+    query = query.order_by(ImportCandidate.created_at.desc()).limit(limit).offset(offset)
     return list((await session.execute(query)).scalars().all())
 
 
