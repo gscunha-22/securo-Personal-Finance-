@@ -27,9 +27,8 @@ spec:
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
           imagePullPolicy: {{ .Values.celeryWorker.image.pullPolicy }}
           command:
-            - celery
-            - -A
-            - app.worker
+            - sh
+            - /app/scripts/start-worker.sh
             - worker
             - --loglevel=info
             - --concurrency=2

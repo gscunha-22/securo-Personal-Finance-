@@ -67,7 +67,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: celery -A app.worker worker --loglevel=info --concurrency=2
+    dockerCommand: sh /app/scripts/start-worker.sh worker --loglevel=info --concurrency=2
     autoDeploy: false
     region: ohio
     envVars:
@@ -112,7 +112,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: celery -A app.worker beat --loglevel=info
+    dockerCommand: sh /app/scripts/start-worker.sh beat --loglevel=info
     autoDeploy: false
     region: ohio
     envVars:

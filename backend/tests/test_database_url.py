@@ -115,6 +115,8 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     prod = (REPO_ROOT / "docker-compose.prod.yml").read_text(encoding="utf-8")
     assert "context: ./backend" in prod
     assert "securo-finance/securo-backend" not in prod
+    assert "start-worker.sh worker" in prod
+    assert "start-worker.sh beat" in prod
     readme = (REPO_ROOT / "charts" / "securo" / "README.md").read_text(encoding="utf-8")
     assert "Deploys the Next.js" not in readme
     assert "Vite" in readme
@@ -124,9 +126,20 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     starter = (REPO_ROOT / "backend" / "scripts" / "start-api.sh").read_text(encoding="utf-8")
     assert "alembic upgrade head" in starter
     assert "${PORT:-8000}" in starter
+    worker_boot = (REPO_ROOT / "backend" / "scripts" / "start-worker.sh").read_text(encoding="utf-8")
+    assert "alembic upgrade head" in worker_boot
+    assert "celery -A app.worker" in worker_boot
     render = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
-    assert "celery -A app.worker worker" in render
-    assert "celery -A app.worker beat" in render
+    assert "start-worker.sh worker" in render
+    assert "start-worker.sh beat" in render
+    worker_deploy = (REPO_ROOT / "charts" / "securo" / "templates" / "worker" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
+    beat_deploy = (REPO_ROOT / "charts" / "securo" / "templates" / "beat" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "start-worker.sh" in worker_deploy
+    assert "start-worker.sh" in beat_deploy
     assert "autoDeploy: false" in render
     assert "type: redis" in render
     assert "nextjs" not in render.lower()
