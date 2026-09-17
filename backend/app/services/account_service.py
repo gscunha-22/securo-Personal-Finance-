@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy import case, delete, func, select, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
 from app.core.account_kinds import is_liability_type
@@ -117,11 +117,13 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
             func.coalesce(prev_balance_sq.c.previous_balance, 0).label("previous_balance"),
         )
         .options(
-            selectinload(Account.connection).load_only(
+            selectinload(Account.connection)
+            .load_only(
                 BankConnection.display_name,
                 BankConnection.institution_name,
                 BankConnection.logo_url,
-            ).selectinload(BankConnection.institutions),
+            )
+            .selectinload(BankConnection.institutions),
         )
         .outerjoin(balance_sq, Account.id == balance_sq.c.account_id)
         .outerjoin(prev_balance_sq, Account.id == prev_balance_sq.c.account_id)
