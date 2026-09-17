@@ -182,9 +182,10 @@ em 5m, teto 1 CU). Não altera o compute de `main`. Não correr
 de documentos, candidatos, jobs, auditoria, fontes e dívidas selecionam só
 as colunas da resposta e têm `limit`/`offset` (teto 200/500). O download do
 original e os campos extraídos não carregam `raw_text` nem versões. O GET
-de fontes não lê `encrypted_refresh_token`. A lista de contas não faz JOIN
-com `bank_connections` (evita duplicar JSON `credentials`/`settings`); usa
-`account_in_workspace` + `selectinload` só com nome/logo.
+de fontes não lê `encrypted_refresh_token`. A lista de contas e o GET de uma conta não fazem JOIN
+com `bank_connections` (evita duplicar JSON `credentials`/`settings`); usam
+`account_in_workspace` + `selectinload` só com nome/logo. A lista de
+transações também não faz JOIN com `bank_connections`.
 
 Branches extra neste projeto (`vercel-dev`,
 `preview/cursor/land-architecture-ci-0b4a`, `backup-restore-verify`) **não**

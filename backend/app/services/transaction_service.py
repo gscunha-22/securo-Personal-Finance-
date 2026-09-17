@@ -11,7 +11,6 @@ from sqlalchemy.orm import defer, selectinload
 from app.models.transaction import Transaction
 from app.models.transaction_attachment import TransactionAttachment
 from app.models.account import Account
-from app.models.bank_connection import BankConnection
 from app.models.category import Category
 from app.models.group import Group, GroupMember
 from app.models.payee import Payee
@@ -198,7 +197,6 @@ async def get_transactions(
     base_query = (
         select(Transaction)
         .outerjoin(Account)
-        .outerjoin(BankConnection)
         .outerjoin(Payee, Transaction.payee_id == Payee.id)
         .outerjoin(Category, Transaction.category_id == Category.id)
         .options(
