@@ -223,6 +223,7 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert render.count("STORAGE_S3_BUCKET") >= 3
     assert render.count("GOOGLE_CLIENT_ID") >= 3
     assert render.count("FRONTEND_URL") >= 3
+    assert "Manual Deploy" in render
     intelligence_tasks = (REPO_ROOT / "backend" / "app" / "tasks" / "intelligence_tasks.py").read_text(
         encoding="utf-8"
     )
@@ -320,6 +321,21 @@ def test_sigv4_headers_include_signed_headers_and_signature():
     )
     assert "list-type=2" in s3_source
     assert "async def ping" in s3_source
+
+
+def test_session_cookie_secure_is_off_for_loopback_http(monkeypatch):
+    from app.core.config import get_settings
+    from app.core.privacy import csrf_cookie_kwargs, session_cookie_kwargs
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "frontend_url", "http://127.0.0.1:5173")
+    assert session_cookie_kwargs()["secure"] is False
+    assert csrf_cookie_kwargs()["secure"] is False
+    monkeypatch.setattr(settings, "frontend_url", "http://localhost:5173")
+    assert session_cookie_kwargs()["secure"] is False
+    monkeypatch.setattr(settings, "frontend_url", "https://app.example.com")
+    assert session_cookie_kwargs()["secure"] is True
+    assert csrf_cookie_kwargs()["secure"] is True
 
 
 def test_content_disposition_encodes_quotes_and_unicode():

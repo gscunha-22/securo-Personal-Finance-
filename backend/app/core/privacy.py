@@ -76,9 +76,19 @@ def content_disposition(disposition: str, filename: str) -> str:
     return f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(raw)}"
 
 
+def _frontend_is_local_http() -> bool:
+    """Cookie Secure must stay off for loopback HTTP (localhost and 127.0.0.1)."""
+    url = get_settings().frontend_url.lower()
+    return (
+        url.startswith("http://localhost")
+        or url.startswith("http://127.0.0.1")
+        or url.startswith("http://[::1]")
+    )
+
+
 def session_cookie_kwargs() -> dict:
     settings = get_settings()
-    secure = not settings.frontend_url.startswith("http://localhost")
+    secure = not _frontend_is_local_http()
     return {
         "key": "session",
         "httponly": True,
@@ -111,7 +121,7 @@ def token_json_response(token: str) -> Response:
 
 def csrf_cookie_kwargs() -> dict:
     settings = get_settings()
-    secure = not settings.frontend_url.startswith("http://localhost")
+    secure = not _frontend_is_local_http()
     return {
         "key": "csrf_token",
         "httponly": False,
