@@ -120,6 +120,19 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "Vite" in readme
     dockerfile = (REPO_ROOT / "backend" / "Dockerfile").read_text(encoding="utf-8")
     assert "tesseract-ocr-por" in dockerfile
+    assert "start-api.sh" in dockerfile
+    starter = (REPO_ROOT / "backend" / "scripts" / "start-api.sh").read_text(encoding="utf-8")
+    assert "alembic upgrade head" in starter
+    assert "${PORT:-8000}" in starter
+    render = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
+    assert "celery -A app.worker worker" in render
+    assert "celery -A app.worker beat" in render
+    assert "autoDeploy: false" in render
+    assert "type: redis" in render
+    assert "nextjs" not in render.lower()
+    assert "type: cron" not in render
+    assert "DATABASE_URL_DIRECT" in render
+    assert "TRUSTED_PROXY_HOPS" in render
     intelligence_tasks = (REPO_ROOT / "backend" / "app" / "tasks" / "intelligence_tasks.py").read_text(
         encoding="utf-8"
     )

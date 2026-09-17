@@ -1,0 +1,133 @@
+# Persistent compute for this private-finance instance.
+# SPA stays on Vercel (frontend/ + API_ORIGIN). This file is FastAPI + Celery
+# worker + Celery beat + Redis. Not a Next.js rewrite. Beat is a long-running
+# process, not an HTTP schedule.
+#
+# In the Render dashboard: New → Blueprint → this repo. Paste Neon pooled
+# DATABASE_URL, DATABASE_URL_DIRECT, SECRET_KEY, FRONTEND_URL (the Vercel HTTPS)
+# and S3 vault keys. Leave autoDeploy off; promote explicitly.
+# The public web URL (no trailing slash, no /api) is API_ORIGIN on Vercel.
+
+databases: []
+
+services:
+  - type: redis
+    name: securo-redis
+    ipAllowList: [] # only Render services; not the public internet
+
+  - type: web
+    name: securo-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    autoDeploy: false
+    region: ohio
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: securo-redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_DIRECT
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: STORAGE_S3_BUCKET
+        sync: false
+      - key: STORAGE_S3_REGION
+        value: us-east-2
+      - key: STORAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: STORAGE_S3_ACCESS_KEY
+        sync: false
+      - key: STORAGE_S3_SECRET_KEY
+        sync: false
+      - key: PRIVATE_INSTANCE
+        value: "true"
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+
+  - type: worker
+    name: securo-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A app.worker worker --loglevel=info --concurrency=2
+    autoDeploy: false
+    region: ohio
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: securo-redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_DIRECT
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: STORAGE_S3_BUCKET
+        sync: false
+      - key: STORAGE_S3_REGION
+        value: us-east-2
+      - key: STORAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: STORAGE_S3_ACCESS_KEY
+        sync: false
+      - key: STORAGE_S3_SECRET_KEY
+        sync: false
+      - key: PRIVATE_INSTANCE
+        value: "true"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+
+  - type: worker
+    name: securo-beat
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A app.worker beat --loglevel=info
+    autoDeploy: false
+    region: ohio
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: securo-redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_DIRECT
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: PRIVATE_INSTANCE
+        value: "true"

@@ -280,7 +280,7 @@ flowchart LR
 
 1. Neon projeto + `pgvector` + `DATABASE_URL` (pooler) e `DATABASE_URL_DIRECT` no compute persistente; `alembic upgrade head` no boot.
 2. `STORAGE_PROVIDER=s3` no cofre; `/api/ready` verde.
-3. Redis gerenciado; worker e beat no mesmo compute que a API. No VPS: `docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d`. No cluster: Helm com `postgresql.enabled=false` e URLs Neon.
+3. Redis gerenciado; worker e beat no mesmo compute que a API. No VPS: `docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d`. No cluster: Helm com `postgresql.enabled=false` e URLs Neon. Na Render: Blueprint `render.yaml` (API + worker + beat + Redis; `autoDeploy: false`; o HTTPS da web service, sem `/api` e sem barra final, é o `API_ORIGIN` da Vercel).
 4. SPA na Vercel (`frontend/` como Root Directory, `API_ORIGIN`, `FRONTEND_URL` e CORS). `TRUSTED_PROXY_HOPS=1`.
 5. Domínio custom + OAuth redirects + `PRIVATE_INSTANCE=true`.
 6. Branch Neon + preview Vercel por PR (opcional, depois do happy path).

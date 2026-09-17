@@ -32,4 +32,5 @@ RUN pip install --no-cache-dir --no-deps -e .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# PaaS injects PORT; Compose/Helm override this command when they need to.
+CMD ["sh", "/app/scripts/start-api.sh"]
