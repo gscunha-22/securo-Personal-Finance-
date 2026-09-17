@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useAuth } from '@/contexts/auth-context'
 import { formatCurrency } from '@/lib/format'
+import { looksLikeRateFraction } from '@/lib/rate-percent'
 import type { RenegotiationPlan } from '@/types'
 
 const PRODUCTS = ['rotativo', 'parcelamento', 'cheque', 'emprestimo', 'consignado', 'financiamento', 'outro'] as const
@@ -319,6 +320,10 @@ export default function DebtsPage() {
                       e.preventDefault()
                       const form = new FormData(e.currentTarget)
                       const payoff = String(form.get('payoff') || '0')
+                      const rateRaw = String(form.get('rate') || '')
+                      if (looksLikeRateFraction(rateRaw) && !window.confirm(t('intelligence.rateLooksLikeFraction', { value: rateRaw }))) {
+                        return
+                      }
                       createDebt.mutate({
                         name: String(form.get('creditor')),
                         creditor: String(form.get('creditor')),
@@ -342,7 +347,7 @@ export default function DebtsPage() {
                     }}
                   >
                     <Field label={t('intelligence.creditor')}>
-                      <Input name="creditor" required />
+                      <Input name="creditor" required aria-label={t('intelligence.creditor')} />
                     </Field>
                     <Field label={t('intelligence.product')}>
                       <NativeSelect name="product" defaultValue="rotativo">
@@ -352,10 +357,11 @@ export default function DebtsPage() {
                       </NativeSelect>
                     </Field>
                     <Field label={t('intelligence.outstanding')}>
-                      <Input name="payoff" type="number" step="0.01" min="0" required />
+                      <Input name="payoff" type="number" step="0.01" min="0" required aria-label={t('intelligence.outstanding')} />
                     </Field>
                     <Field label={t('intelligence.monthlyRate')}>
-                      <Input name="rate" type="number" step="0.01" />
+                      <Input name="rate" type="number" step="0.01" placeholder="14" aria-describedby="debt-rate-hint" />
+                      <p id="debt-rate-hint" className="text-xs text-muted-foreground">{t('intelligence.ratePercentHint')}</p>
                     </Field>
                     <Field label={t('intelligence.cetAnnualInformed')}>
                       <Input name="cet" type="number" step="0.01" />

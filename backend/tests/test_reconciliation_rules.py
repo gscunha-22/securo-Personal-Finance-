@@ -25,7 +25,12 @@ from app.services import (
     reconciliation_service,
 )
 
-TODAY = date.today()
+
+def today() -> date:
+    """Call-time calendar day so a long pytest run cannot freeze yesterday."""
+    return date.today()
+
+
 INVOICE_NODE = reconciliation_policy.MATCH_INVOICE["node"]
 RECURRING_NODE = reconciliation_policy.MATCH_RECURRING["node"]
 
@@ -110,7 +115,7 @@ async def a_payment(
             "description": "PIX RECEBIDO ALPHA",
             "amount": amount,
             "currency": "USD",
-            "date": str(when or TODAY),
+            "date": str(when or today()),
             "type": "credit",
             "account_id": str(account.id),
             "payee_id": str(payee.id),
@@ -126,7 +131,12 @@ async def an_invoice(
     resp = await client.post(
         "/api/invoices",
         headers=headers,
-        json={"total": total, "due_date": str(TODAY), "payee_id": str(payee.id)},
+        json={
+            "total": total,
+            "issue_date": str(today()),
+            "due_date": str(today()),
+            "payee_id": str(payee.id),
+        },
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -986,7 +996,7 @@ async def test_a_rule_limited_to_one_account_leaves_another_alone(
             "description": "PIX RECEBIDO ALPHA",
             "amount": "3000.00",
             "currency": "USD",
-            "date": str(TODAY),
+            "date": str(today()),
             "type": "credit",
             "account_id": str(other.id),
             "payee_id": str(client_payee.id),
@@ -1042,7 +1052,7 @@ async def test_a_text_condition_keeps_a_reversal_from_settling_an_invoice(
             "description": "TED ESTORNO PARCIAL ALPHA",
             "amount": "3000.00",
             "currency": "USD",
-            "date": str(TODAY),
+            "date": str(today()),
             "type": "credit",
             "account_id": str(account.id),
             "payee_id": str(client_payee.id),
@@ -1400,7 +1410,7 @@ async def test_narrowing_a_rule_to_arriving_money_stops_it_looking_back(
     )
 
     await a_payment(
-        client, biz_headers, account, client_payee, when=TODAY - timedelta(days=6)
+        client, biz_headers, account, client_payee, when=today() - timedelta(days=6)
     )
     invoice = await an_invoice(client, biz_headers, client_payee)
 
@@ -1435,7 +1445,7 @@ async def test_widening_a_rule_lets_an_unnamed_payer_settle_a_later_invoice(
             "description": "TED RECEBIDA",
             "amount": "3000.00",
             "currency": "USD",
-            "date": str(TODAY - timedelta(days=2)),
+            "date": str(today() - timedelta(days=2)),
             "type": "credit",
             "account_id": str(account.id),
         },
@@ -1445,7 +1455,7 @@ async def test_widening_a_rule_lets_an_unnamed_payer_settle_a_later_invoice(
     resp = await client.post(
         "/api/invoices",
         headers=biz_headers,
-        json={"total": "3000.00", "due_date": str(TODAY)},
+        json={"total": "3000.00", "issue_date": str(today()), "due_date": str(today())},
     )
     invoice = resp.json()
 
@@ -2727,7 +2737,7 @@ async def test_a_rule_reads_the_name_the_bank_printed_not_only_the_description(
     invoice = await client.post(
         "/api/invoices",
         headers=biz_headers,
-        json={"total": "3000.00", "due_date": str(TODAY)},
+        json={"total": "3000.00", "issue_date": str(today()), "due_date": str(today())},
     )
     assert invoice.status_code == 201, invoice.text
 
@@ -2744,8 +2754,8 @@ async def test_a_rule_reads_the_name_the_bank_printed_not_only_the_description(
         payee="ALPHA INDUSTRIA LTDA",
         amount=Decimal("3000.00"),
         currency="USD",
-        date=TODAY,
-        effective_date=TODAY,
+        date=today(),
+        effective_date=today(),
         type="credit",
         source="sync",
     )

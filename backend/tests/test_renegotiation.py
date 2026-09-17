@@ -52,6 +52,16 @@ def test_cet_annual_from_monthly_is_compound_not_simple():
     assert cet != Decimal("168")
 
 
+def test_monthly_rate_is_percent_not_a_decimal_fraction():
+    """Homolog trap: 0.0399 means 0.0399% a.m., not 3.99% a.m."""
+    as_fraction = cet_annual_from_monthly(Decimal("0.0399"))
+    as_percent = cet_annual_from_monthly(Decimal("3.99"))
+    assert as_fraction is not None and as_percent is not None
+    assert as_percent > as_fraction
+    assert as_fraction < Decimal("1")
+    assert Decimal("59") < as_percent < Decimal("61")
+
+
 def test_price_pmt_zero_rate_is_straight_line():
     assert pmt(Decimal("1200"), Decimal("0"), 12) == Decimal("100.00")
 

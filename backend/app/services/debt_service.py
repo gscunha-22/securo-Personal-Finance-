@@ -8,8 +8,20 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.account import Account
 from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
 from app.services import audit_service, renegotiation as engine
+
+
+async def _workspace_account(
+    session: AsyncSession, workspace_id: uuid.UUID, account_id: uuid.UUID
+) -> Account:
+    account = await session.scalar(
+        select(Account).where(Account.id == account_id, Account.workspace_id == workspace_id)
+    )
+    if account is None:
+        raise ValueError("Account not found in this workspace")
+    return account
 
 
 class DebtCreate(BaseModel):
@@ -65,7 +77,7 @@ class DebtUpdate(BaseModel):
 
 class DebtPaymentCreate(BaseModel):
     paid_on: date
-    amount: Decimal
+    amount: Decimal = Field(gt=0)
     currency: str = "USD"
     principal_amount: Optional[Decimal] = None
     interest_amount: Optional[Decimal] = None
@@ -230,6 +242,8 @@ async def create_debt(
 ) -> Debt:
     payload = data.model_dump()
     account_id = payload.pop("account_id")
+    if account_id is not None:
+        await _workspace_account(session, workspace_id, account_id)
     debt = Debt(
         user_id=user_id,
         workspace_id=workspace_id,
@@ -317,10 +331,14 @@ async def add_payment(
     data: DebtPaymentCreate,
 ) -> Optional[DebtPayment]:
     debt = await session.scalar(
-        select(Debt).where(Debt.id == debt_id, Debt.workspace_id == workspace_id)
+        select(Debt).where(Debt.id == debt_id, Debt.workspace_id == workspace_id).with_for_update()
     )
     if not debt:
         return None
+    if data.amount <= 0:
+        raise ValueError("Payment amount must be positive")
+    if data.currency.upper() != debt.currency.upper():
+        raise ValueError("Payment currency must match the debt currency")
     payment = DebtPayment(
         debt_id=debt.id,
         workspace_id=workspace_id,
@@ -331,6 +349,7 @@ async def add_payment(
         interest_amount=data.interest_amount,
         notes=data.notes,
     )
+    payment.debt = debt
     debt.outstanding_balance = max(Decimal("0.00"), debt.outstanding_balance - data.amount)
     session.add(payment)
     await audit_service.record(
@@ -344,6 +363,8 @@ async def add_payment(
     )
     await session.commit()
     await session.refresh(payment)
+    await session.refresh(debt)
+    payment.debt = debt
     return payment
 
 

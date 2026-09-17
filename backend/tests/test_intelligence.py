@@ -1,5 +1,6 @@
 from datetime import timedelta, timezone
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -95,6 +96,27 @@ async def test_same_file_is_idempotent(client: AsyncClient, auth_headers, test_a
     assert first.json()["sha256"] == sha256_hex(CSV)
     candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
     assert len(candidates) == 2
+
+
+@pytest.mark.asyncio
+async def test_upload_dispatches_extract_to_celery_outside_pytest(
+    client: AsyncClient, auth_headers, vault_dir, monkeypatch
+):
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    with patch("app.worker.celery_app.send_task") as send:
+        response = await client.post(
+            "/api/documents",
+            headers=auth_headers,
+            files={"file": ("stmt.csv", CSV, "text/csv")},
+        )
+    assert response.status_code == 201, response.text
+    send.assert_called_once()
+    assert send.call_args.args[0] == "app.tasks.intelligence_tasks.process_document"
+    jobs = (await client.get("/api/jobs", headers=auth_headers)).json()
+    assert jobs[0]["job_type"] == "extract_document"
+    assert jobs[0]["status"] == "queued"
+    candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    assert candidates == []
 
 
 @pytest.mark.asyncio
@@ -282,6 +304,50 @@ async def test_abandoned_job_recovery(session: AsyncSession, test_workspace):
     recovered = await job_service.recover_abandoned(session)
     await session.commit()
     assert recovered == 1
+    ready = await job_service.list_ready_queued(session, job_type="extract_document")
+    assert job.id in {row.id for row in ready}
+
+
+@pytest.mark.asyncio
+async def test_queued_extract_is_due_only_when_retry_time_arrives(
+    session: AsyncSession, test_workspace
+):
+    import uuid as uuid_lib
+
+    from app.models.processing_job import ProcessingJob
+    from app.services import job_service
+
+    now = datetime.now(timezone.utc)
+    due = ProcessingJob(
+        workspace_id=test_workspace.id,
+        job_type="extract_document",
+        status="queued",
+        payload={"document_id": str(uuid_lib.uuid4())},
+        idempotency_key="due-extract",
+        next_retry_at=now - timedelta(seconds=5),
+    )
+    later = ProcessingJob(
+        workspace_id=test_workspace.id,
+        job_type="extract_document",
+        status="queued",
+        payload={"document_id": str(uuid_lib.uuid4())},
+        idempotency_key="later-extract",
+        next_retry_at=now + timedelta(hours=1),
+    )
+    other = ProcessingJob(
+        workspace_id=test_workspace.id,
+        job_type="sync_gmail",
+        status="queued",
+        payload={},
+        idempotency_key="gmail-queued",
+    )
+    session.add_all([due, later, other])
+    await session.commit()
+    ready = await job_service.list_ready_queued(session, job_type="extract_document")
+    ids = {row.id for row in ready}
+    assert due.id in ids
+    assert later.id not in ids
+    assert other.id not in ids
 
 
 def test_detect_mime_uses_bytes_not_name():
@@ -303,6 +369,9 @@ async def test_document_file_is_not_public(client: AsyncClient, auth_headers, te
     allowed = await client.get(f"/api/documents/{doc_id}/file", headers=auth_headers)
     assert allowed.status_code == 200
     assert allowed.headers.get("Cache-Control") == "private, no-store"
+    disposition = allowed.headers.get("content-disposition", "")
+    assert "filename*=UTF-8''" in disposition
+    assert "stmt.csv" in disposition
 
 
 TINY_PNG = (
@@ -392,3 +461,82 @@ async def test_inferred_recurrence_is_not_materialized(
     stored = await session.get(ImportCandidate, UUID(candidates[0]["id"]))
     assert stored is not None
     assert stored.extra and stored.extra.get("recurrence_suggestion", {}).get("confirmed") is False
+
+
+@pytest.mark.asyncio
+async def test_ai_suggestion_omits_null_facts(client: AsyncClient, auth_headers):
+    response = await client.post(
+        "/api/ai/suggestions",
+        headers=auth_headers,
+        json={"rationale": "keyword match", "confidence": 0.4, "category": "grocery"},
+    )
+    assert response.status_code == 200, response.text
+    rejected = await client.post(
+        "/api/ai/suggestions",
+        headers=auth_headers,
+        json={"rationale": "invented", "confidence": 0.4, "amount": "10.00"},
+    )
+    assert rejected.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_debt_payment_and_account_guards(client: AsyncClient, auth_headers):
+    created = await client.post(
+        "/api/debts",
+        headers=auth_headers,
+        json={
+            "name": "Card",
+            "creditor": "Bank",
+            "currency": "BRL",
+            "principal": "1000.00",
+            "outstanding_balance": "1000.00",
+            "account_id": "00000000-0000-0000-0000-000000000001",
+        },
+    )
+    assert created.status_code == 400
+
+    debt = await client.post(
+        "/api/debts",
+        headers=auth_headers,
+        json={
+            "name": "Card",
+            "creditor": "Bank",
+            "currency": "BRL",
+            "principal": "1000.00",
+            "outstanding_balance": "1000.00",
+        },
+    )
+    assert debt.status_code == 201, debt.text
+    debt_id = debt.json()["id"]
+    negative = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-10", "amount": "-10.00", "currency": "BRL"},
+    )
+    assert negative.status_code == 422
+    mismatch = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-10", "amount": "10.00", "currency": "USD"},
+    )
+    assert mismatch.status_code == 400
+    paid = await client.post(
+        f"/api/debts/{debt_id}/payments",
+        headers=auth_headers,
+        json={"paid_on": "2026-01-10", "amount": "10.00", "currency": "BRL"},
+    )
+    assert paid.status_code == 200, paid.text
+    assert paid.json()["outstanding_balance"] == "990.00"
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_foreign_account(
+    client: AsyncClient, auth_headers, vault_dir
+):
+    response = await client.post(
+        "/api/documents",
+        headers=auth_headers,
+        files={"file": ("stmt.csv", CSV, "text/csv")},
+        data={"account_id": "00000000-0000-0000-0000-000000000001"},
+    )
+    assert response.status_code == 400

@@ -19,9 +19,29 @@ from app.models.account import Account
 from app.models.payee import Payee
 from app.services import invoice_forecast_service as forecast
 
-TODAY = date.today()
-SOON = TODAY + timedelta(days=10)
-FAR = TODAY + timedelta(days=400)
+
+def today() -> date:
+    """Call-time calendar day so a long pytest run cannot freeze yesterday."""
+    return date.today()
+
+
+def soon() -> date:
+    return today() + timedelta(days=10)
+
+
+def far() -> date:
+    return today() + timedelta(days=400)
+
+
+def dashboard_due() -> date:
+    """Due date that lands in the dashboard/cash-flow projection window.
+
+    The walk starts at ``today + 1`` (half-open). Using the month of that
+    due date also keeps the last day of the month on a window that still
+    has a day left, instead of querying a month whose projection range is
+    empty.
+    """
+    return today() + timedelta(days=1)
 
 
 @pytest_asyncio.fixture
@@ -71,8 +91,17 @@ async def client_payee(session: AsyncSession, business_ws, test_user) -> Payee:
 
 
 async def an_invoice(client, headers, **overrides) -> dict:
-    payload = {"total": "5000.00", "due_date": str(SOON)}
+    due = soon()
+    payload = {
+        "total": "5000.00",
+        "due_date": str(due),
+        "issue_date": str(min(due, today())),
+    }
     payload.update(overrides)
+    if "issue_date" not in overrides:
+        due_raw = payload["due_date"]
+        due_on = date.fromisoformat(due_raw) if isinstance(due_raw, str) else due_raw
+        payload["issue_date"] = str(min(due_on, today()))
     resp = await client.post("/api/invoices", headers=headers, json=payload)
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -82,8 +111,8 @@ async def claims(session, business_ws, *, start=None, end=None):
     return await forecast.claims_in_range(
         session,
         uuid.UUID(business_ws["id"]),
-        start or TODAY,
-        end or FAR,
+        start or today(),
+        end or far(),
     )
 
 
@@ -99,7 +128,7 @@ async def test_an_open_invoice_is_money_the_forecast_can_carry(
 
     assert len(found) == 1
     assert found[0].amount == Decimal("5000.00")
-    assert found[0].due_date == SOON
+    assert found[0].due_date == soon()
     assert found[0].signed == Decimal("5000.00")
 
 
@@ -170,7 +199,7 @@ async def test_a_paid_invoice_leaves_the_forecast_to_the_transaction(
             "description": "PIX ALPHA",
             "amount": "5000.00",
             "currency": "USD",
-            "date": str(TODAY),
+            "date": str(today()),
             "type": "credit",
             "account_id": str(account.id),
             "payee_id": str(client_payee.id),
@@ -198,7 +227,7 @@ async def test_only_what_is_left_is_carried(
             "description": "Sinal",
             "amount": "2000.00",
             "currency": "USD",
-            "date": str(TODAY),
+            "date": str(today()),
             "type": "credit",
             "account_id": str(account.id),
         },
@@ -223,8 +252,8 @@ async def test_it_lands_on_the_day_it_was_promised_for(
 ):
     await an_invoice(client, biz_headers)
 
-    assert await claims(session, business_ws, end=SOON) == [], "before the due date"
-    assert len(await claims(session, business_ws, end=SOON + timedelta(days=1))) == 1
+    assert await claims(session, business_ws, end=soon()) == [], "before the due date"
+    assert len(await claims(session, business_ws, end=soon() + timedelta(days=1))) == 1
 
 
 @pytest.mark.asyncio
@@ -237,8 +266,8 @@ async def test_an_overdue_invoice_is_not_relocated_to_today(
     await an_invoice(
         client,
         biz_headers,
-        issue_date=str(TODAY - timedelta(days=90)),
-        due_date=str(TODAY - timedelta(days=60)),
+        issue_date=str(today() - timedelta(days=90)),
+        due_date=str(today() - timedelta(days=60)),
     )
 
     assert await claims(session, business_ws) == []
@@ -283,14 +312,15 @@ async def test_the_projected_balance_carries_what_is_owed(
     """Reaching the endpoint, not just the service. The claim was that
     nothing in invoicing reaches the projected balance; this is the line
     that stops being true."""
-    month = TODAY.replace(day=1).isoformat()
+    due = dashboard_due()
+    month = due.replace(day=1).isoformat()
     before = await client.get(
         f"/api/dashboard/summary?month={month}", headers=biz_headers
     )
     assert before.status_code == 200, before.text
     base = before.json()["projected_balance"]
 
-    await an_invoice(client, biz_headers, due_date=str(TODAY + timedelta(days=1)))
+    await an_invoice(client, biz_headers, due_date=str(due))
 
     after = await client.get(
         f"/api/dashboard/summary?month={month}", headers=biz_headers
@@ -315,7 +345,7 @@ async def test_the_cash_flow_report_carries_it_too(
         )
 
     base = projected(before.json())
-    await an_invoice(client, biz_headers, due_date=str(TODAY + timedelta(days=1)))
+    await an_invoice(client, biz_headers, due_date=str(dashboard_due()))
 
     after = await client.get(url, headers=biz_headers)
     assert projected(after.json()) == pytest.approx(base + 5000.0)
@@ -339,7 +369,7 @@ async def test_a_bill_to_pay_lands_on_the_other_side_of_the_report(
     await an_invoice(
         client, biz_headers, direction="payable", origin="imported",
         external_source="supplier", external_number="NF-2",
-        due_date=str(TODAY + timedelta(days=1)),
+        due_date=str(dashboard_due()),
     )
 
     after = (await client.get(url, headers=biz_headers)).json()
@@ -357,11 +387,12 @@ async def test_a_filter_that_matches_no_account_does_not_carry_claims(
     the workspace back into a total whose transactions had all been
     filtered away: a projected balance built from money the filter had
     just excluded."""
-    month = TODAY.replace(day=1).isoformat()
+    due = dashboard_due()
+    month = due.replace(day=1).isoformat()
     wallets_only = f"?month={month}&asset_group_ids={uuid.uuid4()}"
 
     before = (await client.get(f"/api/dashboard/summary{wallets_only}", headers=biz_headers)).json()
-    await an_invoice(client, biz_headers, due_date=str(TODAY + timedelta(days=1)))
+    await an_invoice(client, biz_headers, due_date=str(due))
     after = (await client.get(f"/api/dashboard/summary{wallets_only}", headers=biz_headers)).json()
 
     assert after["projected_balance"] == before["projected_balance"]

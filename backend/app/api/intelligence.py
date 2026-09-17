@@ -1,21 +1,23 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
+from app.core.privacy import content_disposition, encrypt_secret
 from app.core.rate_limit import RateLimiter
 from app.core.workspace_context import (
     WorkspaceContext,
     current_workspace,
     current_writable_workspace,
 )
-from app.services import job_service, vault_service
+from app.services import audit_service, job_service, oauth_state, vault_service
 from app.services.debt_service import (
     AmortizeBody,
     CashPlanBody,
@@ -46,7 +48,6 @@ from app.services.debt_service import (
 from app.models.audit import AuditEvent, AppNotification
 from app.models.processing_job import ProcessingJob
 from app.models.vault import SourceConnection, VaultDocument
-from sqlalchemy import select
 
 upload_rate_limit = RateLimiter(max_requests=20, window_seconds=60)
 
@@ -132,6 +133,17 @@ class SourceRead(BaseModel):
     last_sync_at: Optional[datetime]
     last_sync_result: Optional[str]
     last_error: Optional[str]
+
+
+class SourceConnectRead(BaseModel):
+    authorization_url: str
+    redirect_uri: str
+    scopes: str
+
+
+class SourceCallbackBody(BaseModel):
+    code: str
+    state: str
 
 
 class AiSuggestBody(BaseModel):
@@ -225,7 +237,7 @@ async def download_document(
         content=data,
         media_type=stored.detected_mime,
         headers={
-            "Content-Disposition": f'inline; filename="{stored.original_filename}"',
+            "Content-Disposition": content_disposition("inline", stored.original_filename),
             "Cache-Control": "private, no-store",
         },
     )
@@ -318,10 +330,12 @@ async def retry_job(
     job = await session.get(ProcessingJob, job_id)
     if not job or job.workspace_id != ctx.workspace.id:
         raise HTTPException(status_code=404, detail="Job not found")
-    if job.job_type == "extract_document":
+    if job.job_type == "extract_document" or job.job_type.startswith("sync_"):
         job.status = "queued"
         await session.commit()
-        return await vault_service.process_extraction_job(session, job.id)
+        from app.services import job_dispatch
+
+        return await job_dispatch.dispatch_or_run(session, job)
     raise HTTPException(status_code=400, detail="This job type cannot be retried here")
 
 
@@ -405,6 +419,188 @@ async def list_sources(
     return out
 
 
+@router.post("/api/sources/{provider}/connect", response_model=SourceConnectRead)
+async def connect_source(
+    provider: str,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+):
+    from app.integrations.source_oauth import (
+        PROVIDERS,
+        authorization_url,
+        client_configured,
+        redirect_uri,
+        requested_scopes,
+    )
+
+    if provider not in PROVIDERS:
+        raise HTTPException(status_code=404, detail="Unknown source provider")
+    if not client_configured(provider):
+        raise HTTPException(status_code=409, detail="Client id is not set")
+    state = await oauth_state.store_state(
+        {
+            "user_id": str(ctx.user_id),
+            "workspace_id": str(ctx.workspace.id),
+            "provider": provider,
+            "flow": "source_readonly",
+        }
+    )
+    try:
+        url = authorization_url(provider, state)
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return SourceConnectRead(
+        authorization_url=url,
+        redirect_uri=redirect_uri(),
+        scopes=" ".join(requested_scopes(provider)),
+    )
+
+
+@router.post("/api/sources/callback", response_model=SourceRead)
+async def source_oauth_callback(
+    body: SourceCallbackBody,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    from app.integrations.readonly import WriteAttemptError
+    from app.integrations.source_oauth import exchange_authorization_code
+    from app.core.privacy import sanitize_error
+
+    stored = await oauth_state.consume_state(body.state)
+    if not stored or stored.get("flow") != "source_readonly":
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    if stored.get("workspace_id") != str(ctx.workspace.id) or stored.get("user_id") != str(
+        ctx.user_id
+    ):
+        raise HTTPException(status_code=400, detail="OAuth state does not match this session")
+    provider = stored.get("provider")
+    if provider not in ("gmail", "sheets", "outlook"):
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    try:
+        bundle = await exchange_authorization_code(provider, body.code)
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except WriteAttemptError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=sanitize_error(str(exc))) from exc
+
+    result = await session.execute(
+        select(SourceConnection).where(
+            SourceConnection.workspace_id == ctx.workspace.id,
+            SourceConnection.provider == provider,
+        )
+    )
+    row = result.scalars().first()
+    if row is None:
+        row = SourceConnection(
+            user_id=ctx.user_id,
+            workspace_id=ctx.workspace.id,
+            provider=provider,
+            display_name=bundle.display_name,
+        )
+        session.add(row)
+        await session.flush()
+    row.user_id = ctx.user_id
+    row.display_name = bundle.display_name
+    row.external_account_id = bundle.external_account_id
+    row.status = "connected"
+    row.granted_scopes = bundle.granted_scopes
+    row.consent_at = datetime.now(timezone.utc)
+    row.encrypted_refresh_token = encrypt_secret(bundle.refresh_token)
+    row.token_expires_at = bundle.expires_at
+    row.last_error = None
+    row.last_sync_result = None
+    await audit_service.record(
+        session,
+        workspace_id=ctx.workspace.id,
+        actor_user_id=ctx.user_id,
+        action="source.connected",
+        entity_type="source_connection",
+        entity_id=row.id,
+        summary=f"{provider} connected read-only",
+        extra={"provider": provider, "scopes": bundle.granted_scopes},
+    )
+    await session.commit()
+    await session.refresh(row)
+    from app.services import job_dispatch, source_sync_service
+
+    job = await source_sync_service.enqueue_sync(session, row)
+    await session.commit()
+    await job_dispatch.dispatch_or_run(session, job, run_inline_in_tests=False)
+    await session.refresh(row)
+    return SourceRead.model_validate(row)
+
+
+@router.post("/api/sources/{provider}/disconnect", response_model=SourceRead)
+async def disconnect_source(
+    provider: str,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    from app.integrations.source_oauth import PROVIDERS
+
+    if provider not in PROVIDERS:
+        raise HTTPException(status_code=404, detail="Unknown source provider")
+    result = await session.execute(
+        select(SourceConnection).where(
+            SourceConnection.workspace_id == ctx.workspace.id,
+            SourceConnection.provider == provider,
+        )
+    )
+    row = result.scalars().first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Source is not connected")
+    row.status = "disconnected"
+    row.encrypted_refresh_token = None
+    row.granted_scopes = None
+    row.last_error = None
+    await audit_service.record(
+        session,
+        workspace_id=ctx.workspace.id,
+        actor_user_id=ctx.user_id,
+        action="source.disconnected",
+        entity_type="source_connection",
+        entity_id=row.id,
+        summary=f"{provider} disconnected",
+        extra={"provider": provider},
+    )
+    await session.commit()
+    await session.refresh(row)
+    return SourceRead.model_validate(row)
+
+
+@router.post("/api/sources/{provider}/sync", response_model=SourceRead)
+async def sync_source(
+    provider: str,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    from app.integrations.source_oauth import PROVIDERS
+    from app.services import source_sync_service
+
+    if provider not in PROVIDERS:
+        raise HTTPException(status_code=404, detail="Unknown source provider")
+    result = await session.execute(
+        select(SourceConnection).where(
+            SourceConnection.workspace_id == ctx.workspace.id,
+            SourceConnection.provider == provider,
+        )
+    )
+    row = result.scalars().first()
+    if row is None or row.status != "connected" or not row.encrypted_refresh_token:
+        raise HTTPException(status_code=409, detail="Source is not connected")
+    job = await source_sync_service.enqueue_sync(session, row)
+    await session.commit()
+    from app.services import job_dispatch
+
+    try:
+        await job_dispatch.dispatch_or_run(session, job)
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await session.refresh(row)
+    return SourceRead.model_validate(row)
+
+
 @router.post("/api/ai/suggestions")
 async def validate_ai_suggestion(
     body: AiSuggestBody,
@@ -412,7 +608,7 @@ async def validate_ai_suggestion(
 ):
     _ = ctx
     try:
-        return vault_service.ai_validate_suggestion(body.model_dump())
+        return vault_service.ai_validate_suggestion(body.model_dump(exclude_none=True))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -431,7 +627,10 @@ async def debts_create(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    return await create_debt(session, ctx.workspace.id, ctx.user_id, data)
+    try:
+        return await create_debt(session, ctx.workspace.id, ctx.user_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/api/debts/{debt_id}", response_model=DebtRead)
@@ -454,10 +653,14 @@ async def debts_payment(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    payment = await add_payment(session, ctx.workspace.id, ctx.user_id, debt_id, data)
+    try:
+        payment = await add_payment(session, ctx.workspace.id, ctx.user_id, debt_id, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not payment:
         raise HTTPException(status_code=404, detail="Debt not found")
-    return {"id": payment.id, "outstanding_balance": str(payment.debt.outstanding_balance) if payment.debt else None}
+    balance = payment.debt.outstanding_balance if payment.debt is not None else None
+    return {"id": payment.id, "outstanding_balance": str(balance) if balance is not None else None}
 
 
 @router.post("/api/debts/{debt_id}/installments")

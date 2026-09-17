@@ -13,7 +13,10 @@ from app.core.privacy import decrypt_secret, encrypt_secret, sanitize_error
 
 READ_ONLY_SCOPES = {
     "gmail": ("https://www.googleapis.com/auth/gmail.readonly",),
-    "sheets": ("https://www.googleapis.com/auth/spreadsheets.readonly",),
+    "sheets": (
+        "https://www.googleapis.com/auth/spreadsheets.readonly",
+        "https://www.googleapis.com/auth/drive.metadata.readonly",
+    ),
     "outlook": ("https://graph.microsoft.com/Mail.Read",),
 }
 

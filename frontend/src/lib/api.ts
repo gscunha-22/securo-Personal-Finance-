@@ -2071,6 +2071,24 @@ export const intelligence = {
     const { data } = await api.get('/sources')
     return data
   },
+  connectSource: async (
+    provider: string,
+  ): Promise<{ authorization_url: string; redirect_uri: string; scopes: string }> => {
+    const { data } = await api.post(`/sources/${provider}/connect`)
+    return data
+  },
+  completeSourceOAuth: async (code: string, state: string): Promise<SourceConnection> => {
+    const { data } = await api.post('/sources/callback', { code, state })
+    return data
+  },
+  disconnectSource: async (provider: string): Promise<SourceConnection> => {
+    const { data } = await api.post(`/sources/${provider}/disconnect`)
+    return data
+  },
+  syncSource: async (provider: string): Promise<SourceConnection> => {
+    const { data } = await api.post(`/sources/${provider}/sync`)
+    return data
+  },
   listDebts: async (): Promise<Debt[]> => {
     const { data } = await api.get('/debts')
     return data

@@ -7,7 +7,11 @@ const USER = {
   is_superuser: true,
   is_verified: true,
   is_2fa_enabled: false,
-  preferences: { language: 'en', currency_display: 'USD' },
+  preferences: {
+    language: 'en',
+    currency_display: 'USD',
+    onboarding_completed: true,
+  },
 }
 
 const WORKSPACE = {
@@ -255,6 +259,11 @@ test('login, upload, review without preselection, approve, reload, retry', async
 
 test('unauthenticated browser cannot download a vault file', async ({ page }) => {
   await installApi(page)
-  const response = await page.request.get('/api/documents/44444444-4444-4444-4444-444444444444/file')
-  expect(response.status()).toBe(401)
+  await page.goto('/login')
+  // page.request bypasses page.route and hits the Vite preview proxy (502).
+  const status = await page.evaluate(async () => {
+    const res = await fetch('/api/documents/44444444-4444-4444-4444-444444444444/file')
+    return res.status
+  })
+  expect(status).toBe(401)
 })

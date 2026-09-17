@@ -10,12 +10,12 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.core.account_kinds import is_liability_type
 from app.models.account import Account
-from app.models.bank_connection import BankConnection
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.recurring_transaction import RecurringTransaction
 from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, DailyBalance, BalanceHistory
 from app.services._query_filters import (
+    account_in_workspace,
     counts_as_user_pnl,
     owner_split_offset_by_category,
     owner_split_offset_pnl,
@@ -636,7 +636,7 @@ async def get_summary(
         await session.scalar(
             select(func.count()).select_from(VaultDocument).where(
                 VaultDocument.workspace_id == workspace_id,
-                VaultDocument.status.in_(["uploaded", "needs_ocr"]),
+                VaultDocument.status == "needs_ocr",
             )
         )
     ) or 0
@@ -659,12 +659,25 @@ async def get_summary(
     ) or 0
     debt_total = None
     if debt_n:
-        debt_total = await session.scalar(
-            select(func.coalesce(func.sum(Debt.outstanding_balance), 0)).where(
-                Debt.workspace_id == workspace_id,
-                Debt.status == "active",
+        debt_rows = (
+            await session.execute(
+                select(Debt.outstanding_balance, Debt.currency).where(
+                    Debt.workspace_id == workspace_id,
+                    Debt.status == "active",
+                )
             )
-        )
+        ).all()
+        converted_total = Decimal("0")
+        for amount, currency in debt_rows:
+            converted, _ = await convert(
+                session,
+                Decimal(str(amount)),
+                currency or primary_currency,
+                primary_currency,
+                allow_fetch=False,
+            )
+            converted_total += converted
+        debt_total = converted_total
     last_doc = await session.scalar(
         select(func.max(VaultDocument.created_at)).where(VaultDocument.workspace_id == workspace_id)
     )
@@ -1304,12 +1317,8 @@ async def _get_open_accounts(
         return []
     stmt = (
         select(Account)
-        .outerjoin(BankConnection)
         .where(
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
+            account_in_workspace(workspace_id),
             Account.is_closed == False,
         )
     )

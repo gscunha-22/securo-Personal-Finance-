@@ -18,6 +18,8 @@ export default function DocumentsPage() {
   const { data: documents, isLoading } = useQuery({
     queryKey: ['documents'],
     queryFn: intelligence.listDocuments,
+    refetchInterval: (query) =>
+      query.state.data?.some((doc) => doc.status === 'uploaded') ? 2000 : false,
   })
   const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: () => accountsApi.list() })
 

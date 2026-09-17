@@ -53,7 +53,11 @@ celery_app.conf.beat_schedule = {
     },
     "recover-abandoned-jobs": {
         "task": "app.tasks.intelligence_tasks.recover_abandoned_jobs",
-        "schedule": 15 * 60,
+        "schedule": 60,
+    },
+    "sync-connected-sources-hourly": {
+        "task": "app.tasks.intelligence_tasks.sync_connected_sources",
+        "schedule": 60 * 60,
     },
 }
 

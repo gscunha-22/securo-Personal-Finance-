@@ -2513,6 +2513,17 @@
     "debtAssumptionDefault": "Ignores tax effects; not a recommendation.",
     "save": "Save",
     "sourcesHint": "Gmail, Sheets and Outlook are read-only. Write APIs are not offered.",
+    "sourceConnect": "Connect read-only",
+    "sourceDisconnect": "Disconnect",
+    "sourceDisconnected": "Source disconnected",
+    "sourceConnectErr": "Could not start or finish the read-only connection",
+    "sourceCallbackMissing": "The consent callback was missing a code or state",
+    "sourceCallbackOk": "Connected in read-only mode. Write APIs were not granted.",
+    "sourceScopes": "Scopes: {{scopes}}",
+    "sourceStatus_not_configured": "not configured",
+    "sourceStatus_awaiting_consent": "awaiting consent",
+    "sourceStatus_connected": "connected",
+    "sourceStatus_disconnected": "disconnected",
     "retryOk": "Job queued again",
     "jobsEmpty": "No processing jobs.",
     "attempts": "attempts",
@@ -2554,6 +2565,8 @@
     "exampleLoaded": "Didactic example loaded",
     "product": "Product",
     "monthlyRate": "Effective monthly rate %",
+    "ratePercentHint": "Enter 14 for 14% a month, not 0.14.",
+    "rateLooksLikeFraction": "{{value}} looks like a decimal fraction. This field is percent: 3.99 means 3.99% a.m. Continue?",
     "cetAnnualInformed": "Stated annual CET %",
     "installment": "Installment / minimum",
     "remainingTerm": "Remaining term (months)",
@@ -2728,6 +2741,9 @@
     "noDebt": "No debt",
     "addInventory": "Add the inventory.",
     "rateUnknown": "—",
-    "perMonth": "{{n}} months"
+    "perMonth": "{{n}} months",
+    "sourceSync": "Sync read-only",
+    "sourceSyncOk": "Read-only sync finished. Nothing was posted to the ledger.",
+    "sourceSyncErr": "Could not sync this source"
   }
 }

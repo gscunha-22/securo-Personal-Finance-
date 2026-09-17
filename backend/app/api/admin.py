@@ -17,7 +17,7 @@ from app.schemas.admin import (
     AppSettingUpdate,
 )
 from app.services import admin_service
-from app.core.privacy import registration_allowed
+from app.core.privacy import lock_instance_bootstrap, registration_allowed
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -213,6 +213,7 @@ async def check_registration_enabled(
     request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
+    await lock_instance_bootstrap(session)
     enabled = await registration_allowed(session)
     if not enabled:
         raise HTTPException(

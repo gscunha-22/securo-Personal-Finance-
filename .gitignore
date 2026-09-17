@@ -19,3 +19,6 @@ docker-compose.override.yml
 # — never commit.
 backend/data/
 backups/
+dump.rdb
+__pycache__/
+*.py[cod]

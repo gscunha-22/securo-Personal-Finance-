@@ -23,17 +23,18 @@ publication**, not for staging review.
 | Human review before ledger | `decide_candidates`; `human_decisions` rows; retry does not duplicate | met |
 | Loan accounts | Enable Banking `LOAN` and Pluggy `LOAN` map to `loan`; treated as liability | met |
 | Inferred recurrences not materialized | Repeating descriptions stay suggestions until auto-generate is confirmed | met |
-| Jobs table + abandoned recovery | `processing_jobs`, `recover_abandoned` | met |
+| Jobs table + abandoned recovery | `processing_jobs`, `recover_abandoned`; API publishes extract/sync to Celery (`job_dispatch`) | met |
 | Read-only Gmail/Sheets/Outlook | `integrations/readonly.py`; write methods raise | met |
 | AI rejects invented amounts/dates | `ai_validate_suggestion` | met |
 | Dashboard real numbers | Debt total `None` when empty; loan balances reduce net worth | met |
 | Documents/Review/Debts/Sources/Processing/Audit UI | pages, routes, nav modules | met |
-| Backup + restore | export zip + `POST /api/export/restore` + instance scripts | met |
+| Backup + restore | export zip + `POST /api/export/restore` + instance scripts; Neon dump + S3 vault pull executed | met |
 | Secrets not committed | `.env.example` empty; gitleaks job | met |
 | Playwright E2E | `e2e/tests/intelligence.spec.ts` in CI | met |
 | Alembic against Postgres | CI job `alembic upgrade head` on service Postgres | met |
-| Live Google/Microsoft OAuth | Owner must create clients | pending owner |
-| Live S3 credentials | Optional; local disk works | pending owner |
+| Live Google/Microsoft OAuth | Connect + `/sources/callback` in code; owner must create clients | pending owner |
+| Live S3 credentials | Neon bucket `securo-vault` on `us-east-2`; secrets only in console/compute env | provisioned; copy secrets to persistent compute |
+| Helm / Compose Neon overlay | `values.yaml` S3 + `docker-compose.neon.yml`; Tesseract eng+por in the API image | met (code); public compute still pending owner tokens |
 | Auto-deploy | Not performed | met (not done) |
 
 ## What was executed vs simulated
@@ -41,7 +42,8 @@ publication**, not for staging review.
 - Executed: API tests for vault, review, debts, jobs, MIME spoof, prompt-injection-as-description, private instance, parse integrity, OCR-without-engine, inferred recurrence, loan mapping.
 - Executed in CI (when this branch runs): ruff, ty, pytest, eslint/tsc/vitest, helm, gitleaks, Alembic chain, Alembic upgrade on Postgres, Playwright Chromium against a mocked API.
 - Simulated: live Gmail/Sheets/Outlook HTTP (adapters raise `NotConfiguredError` until consent). Playwright uses a mocked `/api` so the browser journey is real UI with synthetic data.
-- Not executed: production deploy, live OAuth consent screens, ClamAV (magic-byte + script rejection instead).
+- Executed against the operator Neon project: Alembic `092`, `/api/ready` with pooled Postgres + Redis + S3, CSV upload to the vault, unselected review, approve-to-ledger, debt + renegotiation plan, authenticated file download, `scripts/backup-instance.sh` on `main`, `pg_restore` onto isolated branch `backup-restore-verify`, S3 vault pull of 3 objects.
+- Not executed: production git-deploy (Vercel Git is linked; `git.deploymentEnabled` is false so Git pushes do not publish), public persistent compute (no Fly/Render/Railway token in this environment), live OAuth consent screens, ClamAV (magic-byte + script rejection instead).
 
 ## Risks still open
 

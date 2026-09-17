@@ -2501,6 +2501,17 @@
     "debtAssumptionDefault": "Ignora efeitos fiscais; não é uma recomendação.",
     "save": "Guardar",
     "sourcesHint": "Gmail, Sheets e Outlook são somente leitura. APIs de escrita não são oferecidas.",
+    "sourceConnect": "Ligar só de leitura",
+    "sourceDisconnect": "Desligar",
+    "sourceDisconnected": "Fonte desligada",
+    "sourceConnectErr": "Não foi possível iniciar ou concluir a ligação só de leitura",
+    "sourceCallbackMissing": "O retorno do consentimento veio sem código ou estado",
+    "sourceCallbackOk": "Ligado em modo só de leitura. APIs de escrita não foram concedidas.",
+    "sourceScopes": "Âmbitos: {{scopes}}",
+    "sourceStatus_not_configured": "não configurado",
+    "sourceStatus_awaiting_consent": "a aguardar consentimento",
+    "sourceStatus_connected": "ligado",
+    "sourceStatus_disconnected": "desligado",
     "retryOk": "Job reenfileirado",
     "jobsEmpty": "Nenhum job de processamento.",
     "attempts": "tentativas",
@@ -2542,6 +2553,8 @@
     "exampleLoaded": "Exemplo didático carregado",
     "product": "Produto",
     "monthlyRate": "Taxa efetiva % a.m.",
+    "ratePercentHint": "Informe 14 para 14% ao mês, não 0,14.",
+    "rateLooksLikeFraction": "{{value}} parece uma fração decimal. Este campo é percentual: 3,99 significa 3,99% a.m. Continuar?",
     "cetAnnualInformed": "CET anual informado (%)",
     "installment": "Parcela / mínimo",
     "remainingTerm": "Prazo remanescente (meses)",
@@ -2716,6 +2729,9 @@
     "noDebt": "Sem dívida",
     "addInventory": "Inclua o inventário.",
     "rateUnknown": "—",
-    "perMonth": "{{n}} meses"
+    "perMonth": "{{n}} meses",
+    "sourceSync": "Sincronizar só de leitura",
+    "sourceSyncOk": "Sincronização só de leitura concluída. Nada foi lançado no livro.",
+    "sourceSyncErr": "Não foi possível sincronizar esta fonte"
   }
 }

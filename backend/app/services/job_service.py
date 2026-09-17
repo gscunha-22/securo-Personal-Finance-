@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.privacy import sanitize_error
@@ -110,3 +110,21 @@ async def recover_abandoned(session: AsyncSession) -> int:
         job.next_retry_at = now
         count += 1
     return count
+
+
+async def list_ready_queued(
+    session: AsyncSession,
+    *,
+    job_type: str | None = None,
+    limit: int = 20,
+) -> list[ProcessingJob]:
+    """Queued jobs whose retry time has arrived (or was never set)."""
+    now = datetime.now(timezone.utc)
+    query = select(ProcessingJob).where(
+        ProcessingJob.status == "queued",
+        or_(ProcessingJob.next_retry_at.is_(None), ProcessingJob.next_retry_at <= now),
+    )
+    if job_type:
+        query = query.where(ProcessingJob.job_type == job_type)
+    query = query.order_by(ProcessingJob.priority, ProcessingJob.created_at).limit(limit)
+    return list((await session.execute(query)).scalars().all())

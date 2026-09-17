@@ -2,10 +2,14 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install system deps for asyncpg
+# asyncpg build headers plus Tesseract so image statements OCR in this
+# image (eng+por). Missing tesseract stays needs_ocr and never invents facts.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-por \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencies come from uv.lock (the source of truth — see scripts/lock.sh).
@@ -28,4 +32,5 @@ RUN pip install --no-cache-dir --no-deps -e .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# PaaS injects PORT; Compose/Helm override this command when they need to.
+CMD ["sh", "/app/scripts/start-api.sh"]

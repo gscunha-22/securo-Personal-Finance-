@@ -20,7 +20,10 @@ from app.models.payee import Payee
 from app.models.transaction import Transaction
 from app.services import invoice_service, reconciliation_service
 
-TODAY = date.today()
+
+def today() -> date:
+    """Call-time calendar day so a long pytest run cannot freeze yesterday."""
+    return date.today()
 
 
 @pytest_asyncio.fixture
@@ -75,7 +78,7 @@ async def a_transaction(
     *,
     amount: Decimal = Decimal("3000.00"),
     kind: str = "credit",
-    when: date = TODAY,
+    when: date | None = None,
     description: str = "PIX RECEBIDO ALPHA",
     payee_id: uuid.UUID | None = None,
     source: str = "sync",
@@ -88,7 +91,7 @@ async def a_transaction(
         description=description,
         amount=amount,
         currency="USD",
-        date=when,
+        date=when or today(),
         type=kind,
         source=source,
         payee_id=payee_id,
@@ -108,9 +111,11 @@ async def an_invoice(
     direction: str = "receivable",
     as_draft: bool = False,
 ) -> dict:
+    due_on = due or today()
     payload: dict = {
         "total": total,
-        "due_date": str(due or TODAY),
+        "issue_date": str(min(due_on, today())),
+        "due_date": str(due_on),
         "direction": direction,
         "as_draft": as_draft,
     }
@@ -338,7 +343,7 @@ async def test_a_payment_typed_in_by_hand_settles_its_invoice(
             "description": "PIX RECEBIDO ALPHA",
             "amount": "3000.00",
             "currency": "USD",
-            "date": str(TODAY),
+            "date": str(today()),
             "type": "credit",
             "account_id": str(account.id),
             "payee_id": str(client_payee.id),
@@ -363,7 +368,7 @@ async def test_an_invoice_issued_after_the_payment_finds_it(
     re-examine it: this is the pass that does."""
     paid = await a_transaction(
         session, account, test_user,
-        when=TODAY - timedelta(days=6), payee_id=client_payee.id,
+        when=today() - timedelta(days=6), payee_id=client_payee.id,
     )
 
     invoice = await an_invoice(client, biz_headers, payee_id=client_payee.id)
@@ -381,7 +386,7 @@ async def test_money_from_a_payer_we_cannot_name_is_left_alone(
     life of its own (a refund, a transfer, another job), and claiming it
     for a document written afterwards is a guess. Forward, the same
     payment links, because there the promise came first."""
-    await a_transaction(session, account, test_user, when=TODAY - timedelta(days=6))
+    await a_transaction(session, account, test_user, when=today() - timedelta(days=6))
 
     invoice = await an_invoice(client, biz_headers)
     assert (await _load(session, invoice["id"])).allocations == []
@@ -396,7 +401,7 @@ async def test_two_payments_that_fit_equally_well_settle_nothing(
     for days in (3, 6):
         await a_transaction(
             session, account, test_user,
-            when=TODAY - timedelta(days=days), payee_id=client_payee.id,
+            when=today() - timedelta(days=days), payee_id=client_payee.id,
         )
 
     invoice = await an_invoice(client, biz_headers, payee_id=client_payee.id)
@@ -412,7 +417,7 @@ async def test_the_look_back_stops_at_the_window(
     invoice's."""
     await a_transaction(
         session, account, test_user,
-        when=TODAY - timedelta(days=200), payee_id=client_payee.id,
+        when=today() - timedelta(days=200), payee_id=client_payee.id,
     )
     invoice = await an_invoice(client, biz_headers, payee_id=client_payee.id)
     loaded = await _load(session, invoice["id"])

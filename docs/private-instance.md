@@ -26,7 +26,7 @@ Scopes, when the owner supplies OAuth clients:
 - Sheets: `spreadsheets.readonly`
 - Outlook: `Mail.Read`
 
-Write methods raise. Tokens are encrypted at rest and never logged.
+Write methods raise. Tokens are encrypted at rest and never logged. Sources → Connect starts consent once those clients exist; the SPA returns at `/sources/callback`.
 
 ## Jobs
 
@@ -42,6 +42,12 @@ Write methods raise. Tokens are encrypted at rest and never logged.
 
 - `/api/health` — process is up
 - `/api/ready` — Postgres, Redis and storage
+
+Cloud topology (Vercel SPA + Neon Postgres + persistent API):
+[architecture-vercel-neon.md](architecture-vercel-neon.md). Code hooks:
+`DATABASE_URL` (pooled) + `DATABASE_URL_DIRECT` (Alembic) on the API;
+`API_ORIGIN` on the Vercel project (`frontend/vercel.ts` rewrites `/api`).
+Do not auto-deploy.
 
 ## Do not publish until
 
