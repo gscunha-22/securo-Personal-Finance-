@@ -196,7 +196,7 @@ são o destino do Render. O Blueprint usa só `main` /
 Um serviço (ou o chart Helm) que corre **juntos**:
 
 - `alembic upgrade head` no boot (já é o comando do Compose)
-- `uvicorn app.main:app`
+- `uvicorn app.main:app` (`start-api.sh` liga `--proxy-headers` quando `TRUSTED_PROXY_HOPS` ≠ 0)
 - `celery -A app.worker worker`
 - `celery -A app.worker beat`
 
