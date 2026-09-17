@@ -1,6 +1,16 @@
 import type { VercelConfig } from "@vercel/config/v1";
 
-const apiOrigin = (process.env.API_ORIGIN ?? "").trim().replace(/\/+$/, "");
+function normalizeApiOrigin(raw: string): string {
+  // Operators often paste the Render health URL (.../api). The rewrite
+  // already prefixes /api/:path*, so a trailing /api would become /api/api/.
+  return raw
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/api$/i, "")
+    .replace(/\/+$/, "");
+}
+
+const apiOrigin = normalizeApiOrigin(process.env.API_ORIGIN ?? "");
 
 const csp =
   "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'";

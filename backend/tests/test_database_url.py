@@ -264,6 +264,8 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     for relative in ("frontend/vercel.ts", "vercel.ts"):
         source = (REPO_ROOT / relative).read_text(encoding="utf-8")
         assert "API_ORIGIN" in source
+        assert "normalizeApiOrigin" in source
+        assert ".replace(/\\/api$/i, \"\")" in source
         assert "/api/:path*" in source
         assert "connect-src 'self'" in source
         assert "index.html" in source
@@ -289,6 +291,40 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     )
     assert "exists().where(" in filters
     assert "BankConnection.id == Account.connection_id" in filters
+    accounts = (REPO_ROOT / "backend" / "app" / "services" / "account_service.py").read_text(
+        encoding="utf-8"
+    )
+    get_accounts_src = accounts.split("async def get_accounts")[1].split("async def")[0]
+    assert "account_in_workspace(workspace_id)" in get_accounts_src
+    assert "load_only" in get_accounts_src
+    assert "outerjoin(BankConnection)" not in get_accounts_src
+
+
+def test_normalize_api_origin_strips_trailing_api_segment():
+    import subprocess
+
+    script = r"""
+function normalizeApiOrigin(raw) {
+  return raw.trim().replace(/\/+$/, "").replace(/\/api$/i, "").replace(/\/+$/, "");
+}
+const cases = [
+  ["https://securo-api.onrender.com/api", "https://securo-api.onrender.com"],
+  ["https://securo-api.onrender.com/api/", "https://securo-api.onrender.com"],
+  ["https://securo-api.onrender.com/", "https://securo-api.onrender.com"],
+  ["https://securo-api.onrender.com", "https://securo-api.onrender.com"],
+  [" https://securo-api.onrender.com/API ", "https://securo-api.onrender.com"],
+  ["", ""],
+];
+for (const [input, expected] of cases) {
+  const got = normalizeApiOrigin(input);
+  if (got !== expected) {
+    console.error(JSON.stringify({input, expected, got}));
+    process.exit(1);
+  }
+}
+"""
+    completed = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=False)
+    assert completed.returncode == 0, completed.stderr + completed.stdout
 
 
 def test_sigv4_headers_include_signed_headers_and_signature():

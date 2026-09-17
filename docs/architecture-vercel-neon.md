@@ -182,7 +182,9 @@ em 5m, teto 1 CU). Não altera o compute de `main`. Não correr
 de documentos, candidatos, jobs, auditoria, fontes e dívidas selecionam só
 as colunas da resposta e têm `limit`/`offset` (teto 200/500). O download do
 original e os campos extraídos não carregam `raw_text` nem versões. O GET
-de fontes não lê `encrypted_refresh_token`.
+de fontes não lê `encrypted_refresh_token`. A lista de contas não faz JOIN
+com `bank_connections` (evita duplicar JSON `credentials`/`settings`); usa
+`account_in_workspace` + `selectinload` só com nome/logo.
 
 Branches extra neste projeto (`vercel-dev`,
 `preview/cursor/land-architecture-ci-0b4a`, `backup-restore-verify`) **não**
@@ -214,7 +216,7 @@ imagem — não na Vercel.
 | Variável | Valor alvo |
 |---|---|
 | `FRONTEND_URL` | `https://<domínio-produção>` |
-| `API_ORIGIN` | Origin persistente do FastAPI, sem barra final (env da Vercel) |
+| `API_ORIGIN` | Origin persistente do FastAPI, sem barra final e sem `/api` (env da Vercel; `normalizeApiOrigin` também corta um `/api` colado por engano) |
 | `DATABASE_URL` | `postgresql+asyncpg://...-pooler...neon.tech/neondb?ssl=require` (API/worker) |
 | `DATABASE_URL_DIRECT` | Endpoint Neon **direto** (Alembic, `pg_dump`, restore) |
 | `REDIS_URL` | Upstash ou Redis persistente |
