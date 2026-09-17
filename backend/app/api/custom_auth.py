@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-from app.core.privacy import token_json_response
+from app.core.privacy import csrf_cookie_kwargs, session_cookie_kwargs, token_json_response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,6 +63,20 @@ async def login(
 @router.post("/logout")
 async def logout():
     response = JSONResponse({"detail": "Logged out"})
-    response.delete_cookie("session", path="/")
-    response.delete_cookie("csrf_token", path="/")
+    session = session_cookie_kwargs()
+    csrf = csrf_cookie_kwargs()
+    response.delete_cookie(
+        "session",
+        path=session.get("path", "/"),
+        secure=session.get("secure"),
+        httponly=session.get("httponly"),
+        samesite=session.get("samesite"),
+    )
+    response.delete_cookie(
+        "csrf_token",
+        path=csrf.get("path", "/"),
+        secure=csrf.get("secure"),
+        httponly=csrf.get("httponly"),
+        samesite=csrf.get("samesite"),
+    )
     return response

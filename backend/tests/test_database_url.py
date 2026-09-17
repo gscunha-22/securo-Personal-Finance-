@@ -398,6 +398,39 @@ def test_session_cookie_secure_is_off_for_loopback_http(monkeypatch):
     assert csrf_cookie_kwargs()["secure"] is True
 
 
+def test_session_cookie_secure_follows_forwarded_proto_behind_proxy(monkeypatch):
+    from starlette.requests import Request
+
+    from app.core.config import get_settings
+    from app.core.privacy import _current_request, session_cookie_kwargs
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "frontend_url", "http://localhost:5173")
+    monkeypatch.setattr(settings, "trusted_proxy_hops", 1)
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/auth/login",
+        "raw_path": b"/api/auth/login",
+        "query_string": b"",
+        "headers": [(b"x-forwarded-proto", b"https")],
+        "client": ("127.0.0.1", 123),
+        "server": ("127.0.0.1", 8000),
+    }
+    token = _current_request.set(Request(scope))
+    try:
+        assert session_cookie_kwargs()["secure"] is True
+    finally:
+        _current_request.reset(token)
+    assert session_cookie_kwargs()["secure"] is False
+    logout = (REPO_ROOT / "backend" / "app" / "api" / "custom_auth.py").read_text(encoding="utf-8")
+    assert "delete_cookie" in logout
+    assert 'secure=session.get("secure")' in logout
+
+
 def test_content_disposition_encodes_quotes_and_unicode():
     from app.core.privacy import content_disposition
 

@@ -5,6 +5,7 @@ import base64
 import hashlib
 import hmac
 import re
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -18,6 +19,7 @@ from app.core.config import get_settings
 from app.models.user import User
 
 _BOOTSTRAP_LOCK = 87451203
+_current_request: ContextVar[Request | None] = ContextVar("securo_request", default=None)
 
 
 def _fernet() -> Fernet:
@@ -86,14 +88,33 @@ def _frontend_is_local_http() -> bool:
     )
 
 
+def cookie_secure() -> bool:
+    """HTTPS responses get Secure cookies, including the Vercel rewrite.
+
+    ``FRONTEND_URL`` is the CORS origin. During handoff it may still be
+    ``http://localhost:5173`` while Render is already HTTPS behind
+    ``TRUSTED_PROXY_HOPS``. Prefer ``X-Forwarded-Proto`` when we trust the proxy.
+    """
+    request = _current_request.get()
+    if request is not None:
+        if get_settings().trusted_proxy_hops:
+            forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+            if forwarded == "https":
+                return True
+            if forwarded == "http":
+                return False
+        if request.url.scheme == "https":
+            return True
+    return not _frontend_is_local_http()
+
+
 def session_cookie_kwargs() -> dict:
     settings = get_settings()
-    secure = not _frontend_is_local_http()
     return {
         "key": "session",
         "httponly": True,
         "samesite": "lax",
-        "secure": secure,
+        "secure": cookie_secure(),
         "path": "/",
         "max_age": settings.access_token_expire_minutes * 60,
     }
@@ -121,12 +142,11 @@ def token_json_response(token: str) -> Response:
 
 def csrf_cookie_kwargs() -> dict:
     settings = get_settings()
-    secure = not _frontend_is_local_http()
     return {
         "key": "csrf_token",
         "httponly": False,
         "samesite": "lax",
-        "secure": secure,
+        "secure": cookie_secure(),
         "path": "/",
         "max_age": settings.access_token_expire_minutes * 60,
     }
@@ -152,36 +172,40 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     )
 
     async def dispatch(self, request: Request, call_next):
-        started = datetime.now(timezone.utc)
-        correlation = request.headers.get("x-correlation-id") or hashlib.sha1(
-            f"{started.isoformat()}{request.url.path}".encode()
-        ).hexdigest()[:16]
-        request.state.correlation_id = correlation
-        path = request.url.path
-        exempt = any(path == prefix or path.startswith(prefix + "/") for prefix in self._CSRF_EXEMPT_PREFIXES)
-        if (
-            request.method in {"POST", "PATCH", "PUT", "DELETE"}
-            and request.cookies.get("session")
-            and not request.headers.get("authorization")
-            and not exempt
-        ):
-            csrf_cookie = request.cookies.get("csrf_token")
-            csrf_header = request.headers.get("x-csrf-token")
-            if not (csrf_cookie and csrf_header and hmac.compare_digest(csrf_cookie, csrf_header)):
-                response = Response(
-                    content='{"detail":"CSRF token mismatch"}',
-                    media_type="application/json",
-                    status_code=403,
-                )
-                response.headers["X-Correlation-Id"] = correlation
-                return response
-        response: Response = await call_next(request)
-        response.headers["X-Correlation-Id"] = correlation
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "same-origin"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
-            "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"
-        )
-        return response
+        request_token = _current_request.set(request)
+        try:
+            started = datetime.now(timezone.utc)
+            correlation = request.headers.get("x-correlation-id") or hashlib.sha1(
+                f"{started.isoformat()}{request.url.path}".encode()
+            ).hexdigest()[:16]
+            request.state.correlation_id = correlation
+            path = request.url.path
+            exempt = any(path == prefix or path.startswith(prefix + "/") for prefix in self._CSRF_EXEMPT_PREFIXES)
+            if (
+                request.method in {"POST", "PATCH", "PUT", "DELETE"}
+                and request.cookies.get("session")
+                and not request.headers.get("authorization")
+                and not exempt
+            ):
+                csrf_cookie = request.cookies.get("csrf_token")
+                csrf_header = request.headers.get("x-csrf-token")
+                if not (csrf_cookie and csrf_header and hmac.compare_digest(csrf_cookie, csrf_header)):
+                    response = Response(
+                        content='{"detail":"CSRF token mismatch"}',
+                        media_type="application/json",
+                        status_code=403,
+                    )
+                    response.headers["X-Correlation-Id"] = correlation
+                    return response
+            response: Response = await call_next(request)
+            response.headers["X-Correlation-Id"] = correlation
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Referrer-Policy"] = "same-origin"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
+                "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"
+            )
+            return response
+        finally:
+            _current_request.reset(request_token)
