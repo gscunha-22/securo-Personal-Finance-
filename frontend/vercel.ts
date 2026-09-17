@@ -1,19 +1,18 @@
+import type { VercelConfig } from "@vercel/config/v1";
+
 const apiOrigin = (process.env.API_ORIGIN ?? "").trim().replace(/\/+$/, "");
 
 const csp =
   "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'";
 
-// Always export git.deploymentEnabled so a missing API_ORIGIN cannot
-// skip the production-off latch. ignoreCommand skips the build until
-// the persistent FastAPI origin exists (no storefront without a kitchen).
-export const config = {
+// Automatic Git deploys stay off. Production is an explicit promote after
+// API_ORIGIN points at persistent FastAPI. Rewrites still describe the SPA
+// + same-origin /api shape for a later manual or dashboard deploy.
+export const config: VercelConfig = {
   framework: "vite",
   git: {
-    deploymentEnabled: {
-      main: false,
-    },
+    deploymentEnabled: false,
   },
-  ignoreCommand: apiOrigin ? "exit 1" : "exit 0",
   headers: [
     {
       source: "/(.*)",

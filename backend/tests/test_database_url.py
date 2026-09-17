@@ -165,9 +165,9 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
         assert "connect-src 'self'" in source
         assert "index.html" in source
         assert 'framework: "vite"' in source
-        assert "deploymentEnabled" in source
-        assert "main: false" in source
-        assert "ignoreCommand" in source
+        assert "deploymentEnabled: false" in source
+        assert "@vercel/config/v1" in source
+        assert "ignoreCommand" not in source
         assert "nextjs" not in source.lower()
         assert "throw new Error" not in source
     root = (REPO_ROOT / "vercel.ts").read_text(encoding="utf-8")
@@ -175,6 +175,16 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     assert "frontend/dist" in root
     assert not (REPO_ROOT / "frontend" / "vercel.json").exists()
     assert not (REPO_ROOT / "vercel.json").exists()
+    txn = (REPO_ROOT / "backend" / "app" / "services" / "transaction_service.py").read_text(
+        encoding="utf-8"
+    )
+    assert "async def _get_workspace_account" in txn
+    assert "account_in_workspace" in txn
+    filters = (REPO_ROOT / "backend" / "app" / "services" / "_query_filters.py").read_text(
+        encoding="utf-8"
+    )
+    assert "exists().where(" in filters
+    assert "BankConnection.id == Account.connection_id" in filters
 
 
 def test_sigv4_headers_include_signed_headers_and_signature():

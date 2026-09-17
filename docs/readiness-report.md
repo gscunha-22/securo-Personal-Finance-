@@ -43,7 +43,7 @@ publication**, not for staging review.
 - Executed in CI (when this branch runs): ruff, ty, pytest, eslint/tsc/vitest, helm, gitleaks, Alembic chain, Alembic upgrade on Postgres, Playwright Chromium against a mocked API.
 - Simulated: live Gmail/Sheets/Outlook HTTP (adapters raise `NotConfiguredError` until consent). Playwright uses a mocked `/api` so the browser journey is real UI with synthetic data.
 - Executed against the operator Neon project: Alembic `092`, `/api/ready` with pooled Postgres + Redis + S3, CSV upload to the vault, unselected review, approve-to-ledger, debt + renegotiation plan, authenticated file download, `scripts/backup-instance.sh` on `main`, `pg_restore` onto isolated branch `backup-restore-verify`, S3 vault pull of 3 objects.
-- Not executed: production git-deploy (Vercel Git is linked; `git.deploymentEnabled.main` is false and deploys skip without `API_ORIGIN`), public persistent compute (no Fly/Render/Railway token in this environment), live OAuth consent screens, ClamAV (magic-byte + script rejection instead).
+- Not executed: production git-deploy (Vercel Git is linked; `git.deploymentEnabled` is false so Git pushes do not publish), public persistent compute (no Fly/Render/Railway token in this environment), live OAuth consent screens, ClamAV (magic-byte + script rejection instead).
 
 ## Risks still open
 

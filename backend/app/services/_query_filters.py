@@ -8,12 +8,29 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
+from app.models.bank_connection import BankConnection
 from app.models.category import Category
 from app.models.transaction import Transaction
+
+
+def account_in_workspace(workspace_id: uuid.UUID):
+    """Account is in this workspace directly or via its bank connection.
+
+    Use this instead of ``select(Account).outerjoin(BankConnection)``.
+    SQLite tests map ``postgresql.UUID`` columns; a join can feed a Numeric
+    balance (including ``inf``) into the UUID processor on Python 3.14.
+    """
+    return or_(
+        Account.workspace_id == workspace_id,
+        exists().where(
+            BankConnection.id == Account.connection_id,
+            BankConnection.workspace_id == workspace_id,
+        ),
+    )
 
 
 def is_confirmed():

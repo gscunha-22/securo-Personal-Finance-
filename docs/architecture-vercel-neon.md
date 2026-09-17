@@ -215,16 +215,17 @@ Já no tree, para o operador ligar os três planos sem reescrever o app:
 | Engine asyncpg + Neon | `create_engine_from_url` em `backend/app/core/database.py`: SSL em `*.neon.tech`, `statement_cache_size=0` no host `-pooler`, `pool_pre_ping` / `pool_recycle=300` |
 | Alembic no endpoint direto | `DATABASE_URL_DIRECT`; se vazio e o host for pooler, deriva o compute tirando `-pooler` |
 | Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
-| SPA Vercel | `vercel.ts` na raiz e `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js); `ignoreCommand` sem origin |
+| SPA Vercel | `vercel.ts` na raiz e `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js); `git.deploymentEnabled: false` até o operador promover |
 | Helm | `secret.databaseUrlDirect` → `DATABASE_URL_DIRECT`; `config.storageProvider` / `secret.storageS3*` para o cofre S3; `config.privateInstance` e `trustedProxyHops` |
 | Compose Neon | `docker-compose.neon.yml` overlay: Postgres local desligado, `DATABASE_URL` pooled + direto, `STORAGE_PROVIDER=s3`. `docker-compose.prod.yml` constrói **este** repositório (`--build`), não puxa `ghcr.io/securo-finance`. |
 | Backup | `scripts/backup-instance.sh` / `restore-instance.sh` usam `DATABASE_URL_DIRECT` e recusam tar com `..`/symlink |
 | Vite local | `frontend/vite.config.ts` continua a fazer proxy de `/api` para `BACKEND_URL` |
 | OCR | `backend/Dockerfile` instala Tesseract eng+por; sem o binário o documento fica `needs_ocr` |
 
-Nada disto provisiona Neon nem publica na Vercel. Sem `API_ORIGIN` o
-`ignoreCommand` salta o deploy (vitrine sem cozinha). `git.deploymentEnabled.main`
-fica `false` mesmo sem a variável, para o push a `main` não publicar produção.
+Nada disto provisiona Neon nem publica na Vercel. `git.deploymentEnabled: false`
+desliga **todos** os deploys automáticos a partir do Git (produção e preview)
+até o operador promover. O rewrite `/api` → `API_ORIGIN` continua no ficheiro
+para um deploy manual ou depois de ligar a origem da API.
 
 ## Preview e CI
 
@@ -270,10 +271,9 @@ flowchart LR
 - CSP atual (`connect-src 'self'`) permanece válida com o rewrite.
 - OAuth readonly não muda de escopo.
 - Produção não faz git-deploy automático a partir de `main` sem
-  autorização explícita. `frontend/vercel.ts` desliga
-  `git.deploymentEnabled.main`; preview de branch continua possível
-  quando `API_ORIGIN` está definido. Promoção para o domínio de
-  produção é explícita.
+  autorização explícita. `frontend/vercel.ts` e `vercel.ts` desligam
+  `git.deploymentEnabled` (todas as branches). Preview e produção no Git
+  ficam off até o operador promover com `API_ORIGIN` no projeto Vercel.
 - Dados financeiros em Neon/Vercel/S3 são dados em processadores
   terceiros. Quem exigir air-gap continua no Helm/Compose; esta
   arquitetura é a variante nuvem do mesmo código, não um segundo produto.

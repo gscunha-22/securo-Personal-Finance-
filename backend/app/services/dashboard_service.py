@@ -10,12 +10,12 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.core.account_kinds import is_liability_type
 from app.models.account import Account
-from app.models.bank_connection import BankConnection
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.recurring_transaction import RecurringTransaction
 from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, DailyBalance, BalanceHistory
 from app.services._query_filters import (
+    account_in_workspace,
     counts_as_user_pnl,
     owner_split_offset_by_category,
     owner_split_offset_pnl,
@@ -1317,12 +1317,8 @@ async def _get_open_accounts(
         return []
     stmt = (
         select(Account)
-        .outerjoin(BankConnection)
         .where(
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
+            account_in_workspace(workspace_id),
             Account.is_closed == False,
         )
     )

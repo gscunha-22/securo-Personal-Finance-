@@ -27,6 +27,7 @@ from app.services.credit_card_service import apply_effective_date
 from app.services.rule_service import apply_rules_to_transaction
 from app.services.fx_rate_service import stamp_primary_amount, convert as fx_convert
 from app.services._query_filters import (
+    account_in_workspace,
     counts_as_pnl,
     counts_as_user_pnl,
     is_not_ignored,
@@ -67,6 +68,25 @@ async def _ensure_payee_in_workspace(
     )
     if result.scalar_one_or_none() is None:
         raise ValueError("Payee not found")
+
+
+async def _get_workspace_account(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    account_id: uuid.UUID,
+) -> Optional[Account]:
+    """Load an account visible in this workspace without joining BankConnection.
+
+    An outer join mixed PostgreSQL UUID columns with Numeric balances on
+    SQLite and fed ``inf`` into ``uuid.UUID`` on Python 3.14.
+    """
+    result = await session.execute(
+        select(Account).where(
+            Account.id == account_id,
+            account_in_workspace(workspace_id),
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 def _apply_fx_override(transaction, amount, amount_primary=None, fx_rate_used=None):
@@ -688,18 +708,7 @@ async def create_transaction(
     data: TransactionCreate,
 ) -> Transaction:
     # Verify account belongs to the workspace
-    account_result = await session.execute(
-        select(Account)
-        .outerjoin(BankConnection)
-        .where(
-            Account.id == data.account_id,
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
-        )
-    )
-    account = account_result.scalar_one_or_none()
+    account = await _get_workspace_account(session, workspace_id, data.account_id)
     if not account:
         raise ValueError("Account not found")
 
@@ -785,18 +794,7 @@ async def create_installment_series(
     n = data.installments
 
     # Verify account belongs to the workspace (mirrors create_transaction)
-    account_result = await session.execute(
-        select(Account)
-        .outerjoin(BankConnection)
-        .where(
-            Account.id == base.account_id,
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
-        )
-    )
-    account = account_result.scalar_one_or_none()
+    account = await _get_workspace_account(session, workspace_id, base.account_id)
     if not account:
         raise ValueError("Account not found")
 
@@ -875,33 +873,11 @@ async def create_transfer(
         raise ValueError("Cannot transfer to the same account")
 
     # Verify both accounts belong to the workspace
-    from_result = await session.execute(
-        select(Account)
-        .outerjoin(BankConnection)
-        .where(
-            Account.id == data.from_account_id,
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
-        )
-    )
-    from_account = from_result.scalar_one_or_none()
+    from_account = await _get_workspace_account(session, workspace_id, data.from_account_id)
     if not from_account:
         raise ValueError("Source account not found")
 
-    to_result = await session.execute(
-        select(Account)
-        .outerjoin(BankConnection)
-        .where(
-            Account.id == data.to_account_id,
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
-        )
-    )
-    to_account = to_result.scalar_one_or_none()
+    to_account = await _get_workspace_account(session, workspace_id, data.to_account_id)
     if not to_account:
         raise ValueError("Destination account not found")
 
@@ -1190,18 +1166,7 @@ async def create_transfer_counterpart(
     if anchor.account_id == to_account_id:
         raise ValueError("Counterpart must be in a different account")
 
-    to_result = await session.execute(
-        select(Account)
-        .outerjoin(BankConnection)
-        .where(
-            Account.id == to_account_id,
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
-        )
-    )
-    to_account = to_result.scalar_one_or_none()
+    to_account = await _get_workspace_account(session, workspace_id, to_account_id)
     if not to_account:
         raise ValueError("Destination account not found")
 
@@ -1512,18 +1477,7 @@ async def update_transaction(
     # must have two distinct accounts).
     new_account_id = update_data.get("account_id")
     if new_account_id is not None and new_account_id != transaction.account_id:
-        account_result = await session.execute(
-            select(Account)
-            .outerjoin(BankConnection)
-            .where(
-                Account.id == new_account_id,
-                or_(
-                    Account.workspace_id == workspace_id,
-                    BankConnection.workspace_id == workspace_id,
-                ),
-            )
-        )
-        if account_result.scalar_one_or_none() is None:
+        if await _get_workspace_account(session, workspace_id, new_account_id) is None:
             raise ValueError("Account not found")
 
         if transaction.transfer_pair_id:

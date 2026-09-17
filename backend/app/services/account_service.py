@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy import case, delete, func, select, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
 from app.core.account_kinds import is_liability_type
@@ -14,6 +14,7 @@ from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
 from app.schemas.account import AccountCreate, AccountUpdate
 from app.services._query_filters import (
+    account_in_workspace,
     counts_as_pnl,
     counts_in_current_balance,
     counts_on_bill,
@@ -240,14 +241,10 @@ async def get_credit_card_bills(
 async def get_account(session: AsyncSession, account_id: uuid.UUID, workspace_id: uuid.UUID) -> Optional[Account]:
     result = await session.execute(
         select(Account)
-        .outerjoin(BankConnection)
-        .options(contains_eager(Account.connection))
+        .options(selectinload(Account.connection))
         .where(
             Account.id == account_id,
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
+            account_in_workspace(workspace_id),
         )
     )
     return result.scalar_one_or_none()

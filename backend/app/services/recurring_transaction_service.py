@@ -7,11 +7,11 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
-from app.models.bank_connection import BankConnection
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.transaction import Transaction
 from app.schemas.recurring_transaction import RecurringTransactionCreate, RecurringTransactionUpdate
 from app.services import recurring_match_service
+from app.services._query_filters import account_in_workspace
 from app.services.credit_card_service import apply_effective_date
 from app.services.fx_rate_service import stamp_primary_amount
 
@@ -21,14 +21,9 @@ async def _verify_account_in_workspace(
 ) -> None:
     """Raise ValueError if the account isn't reachable from this workspace."""
     result = await session.execute(
-        select(Account)
-        .outerjoin(BankConnection)
-        .where(
+        select(Account).where(
             Account.id == account_id,
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            ),
+            account_in_workspace(workspace_id),
         )
     )
     if result.scalar_one_or_none() is None:
