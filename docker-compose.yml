@@ -165,11 +165,12 @@ services:
   celery-worker:
     <<: *backend-base
     # Limit to 2 workers to save RAM (default = number of CPUs).
-    command: celery -A app.worker worker --loglevel=info --concurrency=2
+    # start-worker.sh migrates first (idempotent) then execs celery.
+    command: sh /app/scripts/start-worker.sh worker --loglevel=info --concurrency=2
 
   celery-beat:
     <<: *backend-base
-    command: celery -A app.worker beat --loglevel=info
+    command: sh /app/scripts/start-worker.sh beat --loglevel=info
 
   # Optional: Securo built-in MCP server. Only starts under the `agents`
   # profile (`docker compose --profile agents up`). Reuses the backend

@@ -117,6 +117,9 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "securo-finance/securo-backend" not in prod
     assert "start-worker.sh worker" in prod
     assert "start-worker.sh beat" in prod
+    compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "start-worker.sh worker" in compose
+    assert "start-worker.sh beat" in compose
     readme = (REPO_ROOT / "charts" / "securo" / "README.md").read_text(encoding="utf-8")
     assert "Deploys the Next.js" not in readme
     assert "Vite" in readme
