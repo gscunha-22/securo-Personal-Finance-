@@ -280,6 +280,10 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     assert "frontend/dist" in root
     assert not (REPO_ROOT / "frontend" / "vercel.json").exists()
     assert not (REPO_ROOT / "vercel.json").exists()
+    frontend_pkg = (REPO_ROOT / "frontend" / "package.json").read_text(encoding="utf-8")
+    assert '"@vercel/config"' in frontend_pkg
+    node_tsconfig = (REPO_ROOT / "frontend" / "tsconfig.node.json").read_text(encoding="utf-8")
+    assert "vercel.ts" in node_tsconfig
     txn = (REPO_ROOT / "backend" / "app" / "services" / "transaction_service.py").read_text(
         encoding="utf-8"
     )
