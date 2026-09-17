@@ -7,6 +7,6 @@ alembic upgrade head
 # scheme and client IP match TRUSTED_PROXY_HOPS (Render Blueprint sets 1).
 if [ "${TRUSTED_PROXY_HOPS:-0}" != "0" ]; then
   exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}" \
-    --proxy-headers --forwarded-allow-ips=*
+    --proxy-headers --forwarded-allow-ips='*'
 fi
 exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"

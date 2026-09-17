@@ -176,6 +176,7 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "securo-finance/securo-backend" not in prod
     assert "start-worker.sh worker" in prod
     assert "start-worker.sh beat" in prod
+    assert "start-api.sh" in prod
     compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     assert "start-worker.sh worker" in compose
     assert "start-worker.sh beat" in compose
@@ -190,6 +191,7 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "${PORT:-8000}" in starter
     assert "--proxy-headers" in starter
     assert "TRUSTED_PROXY_HOPS" in starter
+    assert "--forwarded-allow-ips='*'" in starter
     worker_boot = (REPO_ROOT / "backend" / "scripts" / "start-worker.sh").read_text(encoding="utf-8")
     assert "alembic upgrade head" in worker_boot
     assert "celery -A app.worker" in worker_boot
