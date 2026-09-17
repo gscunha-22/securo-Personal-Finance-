@@ -11,7 +11,12 @@ export default function SourcesPage() {
   const { t } = useTranslation()
   const { canWrite } = useWorkspace()
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery({ queryKey: ['sources'], queryFn: intelligence.listSources })
+  const { data, isLoading } = useQuery({
+    queryKey: ['sources'],
+    queryFn: intelligence.listSources,
+    refetchInterval: (query) =>
+      query.state.data?.some((source) => source.status === 'connected') ? 4000 : false,
+  })
 
   const connect = useMutation({
     mutationFn: intelligence.connectSource,

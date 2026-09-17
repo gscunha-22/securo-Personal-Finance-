@@ -26,6 +26,10 @@ vi.mock('@/contexts/workspace-context', () => ({
 }))
 
 describe('ReviewPage', () => {
+  it('polls pending candidates while extraction runs on the worker', () => {
+    expect(ReviewPage.toString()).toContain('refetchInterval')
+  })
+
   it('explains that nothing is waiting when the queue is empty', async () => {
     renderWithProviders(<ReviewPage />, { route: '/review' })
     expect(await screen.findByText(t('intelligence.reviewEmpty'))).toBeInTheDocument()

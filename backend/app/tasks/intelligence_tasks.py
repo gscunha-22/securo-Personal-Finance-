@@ -43,6 +43,17 @@ async def _recover_abandoned() -> None:
         await engine.dispose()
 
 
+async def _process_sync(job_id: str) -> None:
+    engine, session_maker = _make_session_maker()
+    try:
+        async with session_maker() as session:
+            from app.services import source_sync_service
+
+            await source_sync_service.process_sync_job(session, uuid.UUID(job_id))
+    finally:
+        await engine.dispose()
+
+
 async def _sync_connected_sources() -> None:
     from app.services import source_sync_service
 
@@ -57,6 +68,11 @@ async def _sync_connected_sources() -> None:
 @celery_app.task(name="app.tasks.intelligence_tasks.process_document")
 def process_document(job_id: str) -> None:
     asyncio.run(_process_document(job_id))
+
+
+@celery_app.task(name="app.tasks.intelligence_tasks.process_sync")
+def process_sync(job_id: str) -> None:
+    asyncio.run(_process_sync(job_id))
 
 
 @celery_app.task(name="app.tasks.intelligence_tasks.recover_abandoned_jobs")

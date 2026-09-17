@@ -157,7 +157,9 @@ async def upload_document(
         extra={"sha256": digest, "mime": detected},
     )
     await session.commit()
-    await process_extraction_job(session, job.id)
+    from app.services import job_dispatch
+
+    await job_dispatch.dispatch_or_run(session, job)
     loaded = await get_document(session, workspace_id, document.id)
     return loaded or document
 

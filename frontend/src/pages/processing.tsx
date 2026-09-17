@@ -10,7 +10,14 @@ export default function ProcessingPage() {
   const { t } = useTranslation()
   const { canWrite } = useWorkspace()
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery({ queryKey: ['jobs'], queryFn: () => intelligence.listJobs() })
+  const { data, isLoading } = useQuery({
+    queryKey: ['jobs'],
+    queryFn: () => intelligence.listJobs(),
+    refetchInterval: (query) =>
+      query.state.data?.some((job) => job.status === 'queued' || job.status === 'running')
+        ? 2000
+        : false,
+  })
   const retry = useMutation({
     mutationFn: intelligence.retryJob,
     onSuccess: () => {

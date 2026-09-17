@@ -23,7 +23,7 @@ publication**, not for staging review.
 | Human review before ledger | `decide_candidates`; `human_decisions` rows; retry does not duplicate | met |
 | Loan accounts | Enable Banking `LOAN` and Pluggy `LOAN` map to `loan`; treated as liability | met |
 | Inferred recurrences not materialized | Repeating descriptions stay suggestions until auto-generate is confirmed | met |
-| Jobs table + abandoned recovery | `processing_jobs`, `recover_abandoned` | met |
+| Jobs table + abandoned recovery | `processing_jobs`, `recover_abandoned`; API publishes extract/sync to Celery (`job_dispatch`) | met |
 | Read-only Gmail/Sheets/Outlook | `integrations/readonly.py`; write methods raise | met |
 | AI rejects invented amounts/dates | `ai_validate_suggestion` | met |
 | Dashboard real numbers | Debt total `None` when empty; loan balances reduce net worth | met |

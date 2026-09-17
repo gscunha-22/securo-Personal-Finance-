@@ -21,6 +21,7 @@ export default function ReviewPage() {
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['review-candidates'],
     queryFn: () => intelligence.listCandidates('pending'),
+    refetchInterval: 4000,
   })
   const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: () => accountsApi.list() })
 

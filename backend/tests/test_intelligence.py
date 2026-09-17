@@ -1,5 +1,6 @@
 from datetime import timedelta, timezone
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -95,6 +96,27 @@ async def test_same_file_is_idempotent(client: AsyncClient, auth_headers, test_a
     assert first.json()["sha256"] == sha256_hex(CSV)
     candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
     assert len(candidates) == 2
+
+
+@pytest.mark.asyncio
+async def test_upload_dispatches_extract_to_celery_outside_pytest(
+    client: AsyncClient, auth_headers, vault_dir, monkeypatch
+):
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    with patch("app.worker.celery_app.send_task") as send:
+        response = await client.post(
+            "/api/documents",
+            headers=auth_headers,
+            files={"file": ("stmt.csv", CSV, "text/csv")},
+        )
+    assert response.status_code == 201, response.text
+    send.assert_called_once()
+    assert send.call_args.args[0] == "app.tasks.intelligence_tasks.process_document"
+    jobs = (await client.get("/api/jobs", headers=auth_headers)).json()
+    assert jobs[0]["job_type"] == "extract_document"
+    assert jobs[0]["status"] == "queued"
+    candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    assert candidates == []
 
 
 @pytest.mark.asyncio

@@ -127,6 +127,15 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "async_session_maker" not in intelligence_tasks
     assert "list_ready_queued" in intelligence_tasks
     assert "sync_connected_sources" in intelligence_tasks
+    assert "process_sync" in intelligence_tasks
+    dispatch = (REPO_ROOT / "backend" / "app" / "services" / "job_dispatch.py").read_text(
+        encoding="utf-8"
+    )
+    assert "PYTEST_CURRENT_TEST" in dispatch
+    assert "process_document" in dispatch
+    assert "process_sync" in dispatch
+    vault = (REPO_ROOT / "backend" / "app" / "services" / "vault_service.py").read_text(encoding="utf-8")
+    assert "job_dispatch" in vault
     worker = (REPO_ROOT / "backend" / "app" / "worker.py").read_text(encoding="utf-8")
     assert (
         '"task": "app.tasks.intelligence_tasks.recover_abandoned_jobs",\n        "schedule": 60,'

@@ -330,16 +330,12 @@ async def retry_job(
     job = await session.get(ProcessingJob, job_id)
     if not job or job.workspace_id != ctx.workspace.id:
         raise HTTPException(status_code=404, detail="Job not found")
-    if job.job_type == "extract_document":
+    if job.job_type == "extract_document" or job.job_type.startswith("sync_"):
         job.status = "queued"
         await session.commit()
-        return await vault_service.process_extraction_job(session, job.id)
-    if job.job_type.startswith("sync_"):
-        job.status = "queued"
-        await session.commit()
-        from app.services import source_sync_service
+        from app.services import job_dispatch
 
-        return await source_sync_service.process_sync_job(session, job.id)
+        return await job_dispatch.dispatch_or_run(session, job)
     raise HTTPException(status_code=400, detail="This job type cannot be retried here")
 
 
@@ -526,10 +522,11 @@ async def source_oauth_callback(
     )
     await session.commit()
     await session.refresh(row)
-    from app.services import source_sync_service
+    from app.services import job_dispatch, source_sync_service
 
-    await source_sync_service.enqueue_sync(session, row)
+    job = await source_sync_service.enqueue_sync(session, row)
     await session.commit()
+    await job_dispatch.dispatch_or_run(session, job, run_inline_in_tests=False)
     await session.refresh(row)
     return SourceRead.model_validate(row)
 
@@ -594,8 +591,10 @@ async def sync_source(
         raise HTTPException(status_code=409, detail="Source is not connected")
     job = await source_sync_service.enqueue_sync(session, row)
     await session.commit()
+    from app.services import job_dispatch
+
     try:
-        await source_sync_service.process_sync_job(session, job.id)
+        await job_dispatch.dispatch_or_run(session, job)
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.refresh(row)
