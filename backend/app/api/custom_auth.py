@@ -67,16 +67,16 @@ async def logout():
     csrf = csrf_cookie_kwargs()
     response.delete_cookie(
         "session",
-        path=session.get("path", "/"),
-        secure=session.get("secure"),
-        httponly=session.get("httponly"),
-        samesite=session.get("samesite"),
+        path="/",
+        secure=bool(session["secure"]),
+        httponly=True,
+        samesite="lax",
     )
     response.delete_cookie(
         "csrf_token",
-        path=csrf.get("path", "/"),
-        secure=csrf.get("secure"),
-        httponly=csrf.get("httponly"),
-        samesite=csrf.get("samesite"),
+        path="/",
+        secure=bool(csrf["secure"]),
+        httponly=False,
+        samesite="lax",
     )
     return response

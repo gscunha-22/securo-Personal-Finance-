@@ -428,7 +428,7 @@ def test_session_cookie_secure_follows_forwarded_proto_behind_proxy(monkeypatch)
     assert session_cookie_kwargs()["secure"] is False
     logout = (REPO_ROOT / "backend" / "app" / "api" / "custom_auth.py").read_text(encoding="utf-8")
     assert "delete_cookie" in logout
-    assert 'secure=session.get("secure")' in logout
+    assert 'secure=bool(session["secure"])' in logout
 
 
 def test_content_disposition_encodes_quotes_and_unicode():
