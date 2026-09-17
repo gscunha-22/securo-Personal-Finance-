@@ -193,6 +193,10 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "TRUSTED_PROXY_HOPS" in starter
     assert "--forwarded-allow-ips='*'" in starter
     assert "${RENDER:-}" in starter
+    main_py = (REPO_ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+    assert "RENDER_GIT_COMMIT" in main_py
+    assert "RENDER_GIT_BRANCH" in main_py
+    assert "_revision_payload" in main_py
     worker_boot = (REPO_ROOT / "backend" / "scripts" / "start-worker.sh").read_text(encoding="utf-8")
     assert "alembic upgrade head" in worker_boot
     assert "celery -A app.worker" in worker_boot
