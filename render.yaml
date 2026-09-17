@@ -127,7 +127,27 @@ services:
         sync: false
       - key: SECRET_KEY
         sync: false
+      - key: FRONTEND_URL
+        sync: false
       - key: STORAGE_PROVIDER
         value: s3
+      - key: STORAGE_S3_BUCKET
+        sync: false
+      - key: STORAGE_S3_REGION
+        value: us-east-2
+      - key: STORAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: STORAGE_S3_ACCESS_KEY
+        sync: false
+      - key: STORAGE_S3_SECRET_KEY
+        sync: false
       - key: PRIVATE_INSTANCE
         value: "true"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false

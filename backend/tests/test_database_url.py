@@ -133,6 +133,9 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "type: cron" not in render
     assert "DATABASE_URL_DIRECT" in render
     assert "TRUSTED_PROXY_HOPS" in render
+    assert render.count("STORAGE_S3_BUCKET") >= 3
+    assert render.count("GOOGLE_CLIENT_ID") >= 3
+    assert render.count("FRONTEND_URL") >= 3
     intelligence_tasks = (REPO_ROOT / "backend" / "app" / "tasks" / "intelligence_tasks.py").read_text(
         encoding="utf-8"
     )
