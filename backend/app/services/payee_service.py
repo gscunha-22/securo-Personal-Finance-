@@ -27,7 +27,10 @@ async def get_payees(
             Transaction.payee_id,
             func.count(Transaction.id).label("tx_count"),
         )
-        .where(Transaction.payee_id.isnot(None))
+        .where(
+            Transaction.payee_id.isnot(None),
+            Transaction.workspace_id == workspace_id,
+        )
         .group_by(Transaction.payee_id)
         .subquery()
     )

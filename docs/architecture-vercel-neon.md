@@ -190,7 +190,10 @@ P/L em `get_transactions` usam `with_only_columns` (`id` / `type` /
 `amount` / `amount_primary`) para o subquery não materializar JSONB
 `raw_data` — `defer()` só vale no load ORM, não no SQL do count. O GET `/api/connections`
 não carrega `credentials` nem as contas filhas (`BankConnectionRead` não as
-usa); sync e reconnect-token continuam a ler tokens no GET por id.
+usa); sync e reconnect-token continuam a ler tokens no GET por id. O GET
+`/api/import-logs` pagina (teto 200) e faz `selectinload` só de `Account.name`
+em vez de `joinedload` da conta inteira. `get_payees` conta transações só
+deste workspace. O GET de uma transação adia `raw_data`.
 
 No Neon deste operador (`rough-dream-93584716`, `us-east-2`, ~5 MB de
 transferência no período): `list_functions` na `main` continua `[]`;

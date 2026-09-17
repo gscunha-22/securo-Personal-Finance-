@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import load_only, selectinload
 
 from app.core.database import get_async_session
 from app.core.workspace_context import (
@@ -9,6 +9,7 @@ from app.core.workspace_context import (
     current_workspace,
     current_writable_workspace,
 )
+from app.models.account import Account
 from app.models.import_log import ImportLog
 from app.models.transaction import Transaction
 from app.schemas.import_log import ImportLogRead
@@ -21,14 +22,18 @@ router = APIRouter(prefix="/api/import-logs", tags=["import-logs"])
 async def list_import_logs(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
+    limit: int = Query(200, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
     result = await session.execute(
         select(ImportLog)
-        .options(joinedload(ImportLog.account))
+        .options(selectinload(ImportLog.account).load_only(Account.name))
         .where(ImportLog.workspace_id == ctx.workspace.id)
         .order_by(ImportLog.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
-    logs = result.scalars().unique().all()
+    logs = result.scalars().all()
     return [
         ImportLogRead(
             id=log.id,

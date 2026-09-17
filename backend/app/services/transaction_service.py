@@ -709,6 +709,7 @@ async def get_transaction(
             Transaction.workspace_id == workspace_id,
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.payee_entity),
             selectinload(Transaction.splits),
@@ -1103,6 +1104,7 @@ async def get_transfer_pair(
             Transaction.id != anchor.id,
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.account),
             selectinload(Transaction.payee_entity),

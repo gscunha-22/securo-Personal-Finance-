@@ -346,6 +346,20 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     assert "load_only(" in dash_connectors
     assert "SourceConnection.last_sync_result" in dash_connectors
     assert "encrypted_refresh_token" not in dash_connectors
+    import_logs_src = (REPO_ROOT / "backend" / "app" / "api" / "import_logs.py").read_text(
+        encoding="utf-8"
+    )
+    list_import_src = import_logs_src.split("async def list_import_logs")[1].split("async def")[0]
+    assert "joinedload(ImportLog.account)" not in list_import_src
+    assert "selectinload(ImportLog.account).load_only(Account.name)" in list_import_src
+    assert ".limit(limit)" in list_import_src
+    get_one_tx = txn.split("async def get_transaction(")[1].split("async def")[0]
+    assert "defer(Transaction.raw_data)" in get_one_tx
+    payees_src = (REPO_ROOT / "backend" / "app" / "services" / "payee_service.py").read_text(
+        encoding="utf-8"
+    )
+    get_payees_src = payees_src.split("async def get_payees")[1].split("async def")[0]
+    assert "Transaction.workspace_id == workspace_id" in get_payees_src
 
 
 def test_normalize_api_origin_strips_trailing_api_segment():
