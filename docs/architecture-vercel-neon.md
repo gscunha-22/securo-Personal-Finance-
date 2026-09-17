@@ -215,7 +215,7 @@ imagem — não na Vercel.
 
 | Variável | Valor alvo |
 |---|---|
-| `FRONTEND_URL` | `https://<domínio-produção>` |
+| `FRONTEND_URL` | `https://<domínio-produção>` sem barra final (CORS usa Origin do browser) |
 | `API_ORIGIN` | Origin persistente do FastAPI, sem barra final e sem `/api` (env da Vercel; `normalizeApiOrigin` também corta um `/api` colado por engano) |
 | `DATABASE_URL` | `postgresql+asyncpg://...-pooler...neon.tech/neondb?ssl=require` (API/worker) |
 | `DATABASE_URL_DIRECT` | Endpoint Neon **direto** (Alembic, `pg_dump`, restore) |

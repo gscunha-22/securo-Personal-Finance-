@@ -2,7 +2,7 @@ from functools import lru_cache
 from os import getenv
 from pathlib import Path
 
-from pydantic import SecretStr, model_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Use the same environment variable that systemd uses: https://systemd.io/CREDENTIALS/
@@ -152,6 +152,13 @@ class Settings(BaseSettings):
     # Set TESOURO_DIRETO_ENABLED=false to fully disable (e.g. to avoid the
     # external dependency on the Brazilian government endpoint).
     tesouro_direto_enabled: bool = True
+
+    @field_validator("frontend_url")
+    @classmethod
+    def normalize_frontend_url(cls, value: str) -> str:
+        # Browser Origin has no trailing slash. A pasted Vercel URL with /
+        # would miss CORS allow_origins and break cookie/OAuth redirects.
+        return value.strip().rstrip("/")
 
     @property
     def oidc_login_available(self) -> bool:

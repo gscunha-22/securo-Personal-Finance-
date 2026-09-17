@@ -359,6 +359,15 @@ def test_sigv4_headers_include_signed_headers_and_signature():
     assert "async def ping" in s3_source
 
 
+def test_frontend_url_strips_trailing_slash():
+    from app.core.config import Settings
+
+    settings = Settings(frontend_url="https://securo.vercel.app/")
+    assert settings.frontend_url == "https://securo.vercel.app"
+    main = (REPO_ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+    assert 'allow_origins=[settings.frontend_url.rstrip("/")]' in main
+
+
 def test_session_cookie_secure_is_off_for_loopback_http(monkeypatch):
     from app.core.config import get_settings
     from app.core.privacy import csrf_cookie_kwargs, session_cookie_kwargs
