@@ -6,7 +6,7 @@ from typing import Optional, cast
 
 from sqlalchemy import CursorResult, delete, select, func, or_, not_, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from app.models.transaction import Transaction
 from app.models.transaction_attachment import TransactionAttachment
@@ -202,6 +202,7 @@ async def get_transactions(
         .outerjoin(Payee, Transaction.payee_id == Payee.id)
         .outerjoin(Category, Transaction.category_id == Category.id)
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.account),
             selectinload(Transaction.payee_entity),
@@ -1007,6 +1008,7 @@ async def get_transfer_candidates(
             Transaction.date <= to_date,
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.account),
             selectinload(Transaction.payee_entity),

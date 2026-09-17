@@ -51,6 +51,15 @@ ALLOWED_MIMES = {
 
 IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif"}
 
+# Columns DocumentRead returns. storage_key stays off list/detail so a
+# document listing never ships the vault path.
+_STORED_OBJECT_READ_COLUMNS = (
+    StoredObject.original_filename,
+    StoredObject.detected_mime,
+    StoredObject.sha256,
+    StoredObject.byte_size,
+)
+
 
 def _scan_bytes(data: bytes) -> str:
     """Equivalent of antivirus when ClamAV is not in the image: reject obvious payloads."""
@@ -510,12 +519,7 @@ async def list_documents(
         select(VaultDocument)
         .where(VaultDocument.workspace_id == workspace_id)
         .options(
-            selectinload(VaultDocument.stored_object).load_only(
-                StoredObject.original_filename,
-                StoredObject.detected_mime,
-                StoredObject.sha256,
-                StoredObject.byte_size,
-            )
+            selectinload(VaultDocument.stored_object).load_only(*_STORED_OBJECT_READ_COLUMNS)
         )
         .order_by(VaultDocument.created_at.desc())
         .limit(limit)
@@ -530,7 +534,9 @@ async def get_document(
     return await session.scalar(
         select(VaultDocument)
         .where(VaultDocument.id == document_id, VaultDocument.workspace_id == workspace_id)
-        .options(selectinload(VaultDocument.stored_object))
+        .options(
+            selectinload(VaultDocument.stored_object).load_only(*_STORED_OBJECT_READ_COLUMNS)
+        )
     )
 
 
@@ -570,6 +576,15 @@ async def download_original(
         select(StoredObject)
         .join(VaultDocument, VaultDocument.stored_object_id == StoredObject.id)
         .where(VaultDocument.id == document_id, VaultDocument.workspace_id == workspace_id)
+        .options(
+            load_only(
+                StoredObject.storage_key,
+                StoredObject.original_filename,
+                StoredObject.detected_mime,
+                StoredObject.sha256,
+                StoredObject.byte_size,
+            )
+        )
     )
     if stored is None:
         raise LookupError("Document not found")

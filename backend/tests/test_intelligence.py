@@ -586,5 +586,14 @@ async def test_list_endpoints_omit_wide_columns_and_honor_limit(
     assert sources
     assert all("encrypted_refresh_token" not in row for row in sources)
 
+    listed_tx = (await client.get("/api/transactions", headers=auth_headers)).json()
+    rows = listed_tx if isinstance(listed_tx, list) else listed_tx.get("items") or []
+    assert all("raw_data" not in row for row in rows)
+
+    detail = (await client.get(f"/api/documents/{full[0]['id']}", headers=auth_headers)).json()
+    assert "storage_key" not in detail
+    file_resp = await client.get(f"/api/documents/{full[0]['id']}/file", headers=auth_headers)
+    assert file_resp.status_code == 200
+
     audit = (await client.get("/api/audit", headers=auth_headers)).json()
     assert all("extra" not in row for row in audit)

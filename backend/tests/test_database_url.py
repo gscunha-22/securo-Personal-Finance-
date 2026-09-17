@@ -241,6 +241,7 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "job_dispatch" in vault
     assert "latest_interpretation_versions" in vault
     assert "list_extracted_fields" in vault
+    assert "_STORED_OBJECT_READ_COLUMNS" in vault
     assert "encrypted_refresh_token" not in (REPO_ROOT / "backend" / "app" / "api" / "intelligence.py").read_text(
         encoding="utf-8"
     ).split("async def list_sources")[1].split("async def connect_source")[0]
@@ -279,6 +280,7 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     txn = (REPO_ROOT / "backend" / "app" / "services" / "transaction_service.py").read_text(
         encoding="utf-8"
     )
+    assert "defer(Transaction.raw_data)" in txn
     assert "async def _get_workspace_account" in txn
     assert "account_in_workspace" in txn
     filters = (REPO_ROOT / "backend" / "app" / "services" / "_query_filters.py").read_text(
