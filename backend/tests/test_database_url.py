@@ -313,6 +313,13 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     get_tx_src = txn.split("async def get_transactions")[1].split("async def")[0]
     assert "outerjoin(BankConnection)" not in get_tx_src
     assert "defer(Transaction.raw_data)" in get_tx_src
+    connections_src = (REPO_ROOT / "backend" / "app" / "services" / "connection_service.py").read_text(
+        encoding="utf-8"
+    )
+    get_connections_src = connections_src.split("async def get_connections")[1].split("async def")[0]
+    assert "defer(BankConnection.credentials)" in get_connections_src
+    assert "selectinload(BankConnection.accounts)" not in get_connections_src
+    assert "selectinload(BankConnection.institutions)" in get_connections_src
 
 
 def test_normalize_api_origin_strips_trailing_api_segment():

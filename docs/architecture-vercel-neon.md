@@ -185,7 +185,20 @@ original e os campos extraídos não carregam `raw_text` nem versões. O GET
 de fontes não lê `encrypted_refresh_token`. A lista de contas e o GET de uma conta não fazem JOIN
 com `bank_connections` (evita duplicar JSON `credentials`/`settings`); usam
 `account_in_workspace` + `selectinload` só com nome/logo. A lista de
-transações também não faz JOIN com `bank_connections`.
+transações também não faz JOIN com `bank_connections`. O GET `/api/connections`
+não carrega `credentials` nem as contas filhas (`BankConnectionRead` não as
+usa); sync e reconnect-token continuam a ler tokens no GET por id.
+
+No Neon deste operador (`rough-dream-93584716`, `us-east-2`, ~5 MB de
+transferência no período): `list_functions` na `main` continua `[]`;
+Object Storage está ligado; as queries de topo em `pg_stat_statements` são
+monitoração da plataforma, não o livro. Não declarar Functions no `neon.ts`
+e não as usar como FastAPI/Celery. Branches `vercel-dev` e
+`preview/cursor/land-architecture-ci-0b4a` nasceram da integração Vercel —
+o projeto SPA **já existe** nalguma conta Vercel (create devolve 409) mesmo
+quando o MCP Hobby do Cursor só lista `gavi-ai-4kt2`. Abrir esse projeto
+existente (`Root Directory` = `frontend`, auto-deploy off). Não criar um
+segundo.
 
 Branches extra neste projeto (`vercel-dev`,
 `preview/cursor/land-architecture-ci-0b4a`, `backup-restore-verify`) **não**
@@ -307,7 +320,11 @@ flowchart LR
 1. Neon projeto + `pgvector` + `DATABASE_URL` (pooler) e `DATABASE_URL_DIRECT` no compute persistente; `alembic upgrade head` no boot.
 2. `STORAGE_PROVIDER=s3` no cofre; `/api/ready` verde.
 3. Redis gerenciado; worker e beat no mesmo compute que a API. No VPS: `docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d`. No cluster: Helm com `postgresql.enabled=false` e URLs Neon. Na Render: Blueprint `render.yaml` (API + worker + beat + Redis; `autoDeploy: false`; o HTTPS da web service, sem `/api` e sem barra final, é o `API_ORIGIN` da Vercel).
-4. SPA na Vercel (`frontend/` como Root Directory, `API_ORIGIN`, `FRONTEND_URL` e CORS). `TRUSTED_PROXY_HOPS=1`.
+4. SPA na Vercel: se o dashboard já tem `securo-personal-finance`, ligar
+   este Git repo aí (`frontend/` como Root Directory, auto-deploy off). Não
+   criar um segundo projeto. Depois do `/api/ready` público, `API_ORIGIN`
+   (HTTPS da API, sem `/api`) + `FRONTEND_URL` e um deploy **manual**.
+   `TRUSTED_PROXY_HOPS=1`.
 5. Domínio custom + OAuth redirects + `PRIVATE_INSTANCE=true`.
 6. Branch Neon + preview Vercel por PR (opcional, depois do happy path).
 

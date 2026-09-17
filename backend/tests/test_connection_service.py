@@ -200,6 +200,25 @@ async def test_get_connections_empty(session: AsyncSession, test_user, test_work
 
 
 @pytest.mark.asyncio
+async def test_get_connections_defers_credentials_and_skips_accounts(
+    session: AsyncSession, test_user, test_workspace
+):
+    """List endpoint must not pull JSON bank tokens or every child account."""
+    from sqlalchemy import inspect as sa_inspect
+
+    await _make_connection(session, test_user.id, "Egress Bank")
+    workspace_id = test_workspace.id
+    session.expire_all()
+
+    connections = await get_connections(session, workspace_id)
+    listed = next(c for c in connections if c.institution_name == "Egress Bank")
+    unloaded = sa_inspect(listed).unloaded
+    assert "credentials" in unloaded
+    assert "accounts" in unloaded
+    assert listed.settings is None or listed.settings == {}
+
+
+@pytest.mark.asyncio
 async def test_get_connection_found(session: AsyncSession, test_user, test_workspace):
     """Returns a specific connection."""
     conn = await _make_connection(session, test_user.id, "Specific Bank")

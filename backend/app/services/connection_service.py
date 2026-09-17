@@ -9,7 +9,7 @@ from typing import Optional
 from sqlalchemy import delete, exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from app.core.config import get_settings
 from app.models.asset import Asset
@@ -843,10 +843,19 @@ async def _match_pluggy_category(
 
 
 async def get_connections(session: AsyncSession, workspace_id: uuid.UUID) -> list[BankConnection]:
+    """List connections for the workspace without bank tokens or accounts.
+
+    BankConnectionRead does not include credentials or accounts. Loading the
+    JSON tokens and every child account would transfer unused wide rows on
+    every GET /api/connections.
+    """
     result = await session.execute(
         select(BankConnection)
         .where(BankConnection.workspace_id == workspace_id)
-        .options(selectinload(BankConnection.accounts))
+        .options(
+            defer(BankConnection.credentials),
+            selectinload(BankConnection.institutions),
+        )
         .order_by(BankConnection.created_at.desc())
     )
     return list(result.scalars().all())
