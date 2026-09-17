@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_async_session
 from app.core.workspace_context import (
