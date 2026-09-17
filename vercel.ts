@@ -16,8 +16,11 @@ const apiOrigin = normalizeApiOrigin(process.env.API_ORIGIN ?? "");
 // before evaluating identifiers (`value: csp` → missing required property
 // `value` on the production deploy of cursor/land-architecture-ci-0b4a).
 // Used when the Vercel Root Directory is the repo root (not frontend/).
+// `framework: "vite"` here made Vercel look for vite.config.ts at the repo
+// root ("couldn't load a valid project configuration"). null is the Other
+// preset; install/build/output point at frontend/.
 export const config: VercelConfig = {
-  framework: "vite",
+  framework: null,
   installCommand: "npm ci --prefix frontend",
   buildCommand: "npm run build --prefix frontend",
   outputDirectory: "frontend/dist",

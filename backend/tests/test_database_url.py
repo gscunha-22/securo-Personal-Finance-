@@ -284,7 +284,6 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
         assert "/api/:path*" in source
         assert "connect-src 'self'" in source
         assert "index.html" in source
-        assert 'framework: "vite"' in source
         assert "deploymentEnabled: false" in source
         assert "@vercel/config/v1" in source
         assert "ignoreCommand" not in source
@@ -293,9 +292,13 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
         config_src = source.split("export const config")[1]
         assert "value: csp" not in config_src
         assert 'value:\n            "default-src' in config_src
+    frontend_ts = (REPO_ROOT / "frontend" / "vercel.ts").read_text(encoding="utf-8")
+    assert 'framework: "vite"' in frontend_ts.split("export const config")[1]
     root = (REPO_ROOT / "vercel.ts").read_text(encoding="utf-8")
     assert "npm run build --prefix frontend" in root
     assert "frontend/dist" in root
+    assert "framework: null" in root.split("export const config")[1]
+    assert 'framework: "vite"' not in root.split("export const config")[1]
     assert not (REPO_ROOT / "frontend" / "vercel.json").exists()
     assert not (REPO_ROOT / "vercel.json").exists()
     frontend_pkg = (REPO_ROOT / "frontend" / "package.json").read_text(encoding="utf-8")

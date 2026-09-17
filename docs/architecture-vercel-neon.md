@@ -328,10 +328,12 @@ flowchart LR
 3. Redis gerenciado; worker e beat no mesmo compute que a API. No VPS: `docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d`. No cluster: Helm com `postgresql.enabled=false` e URLs Neon. Na Render: Blueprint `render.yaml` (API + worker + beat + Redis; `autoDeploy: false`; o HTTPS da web service, sem `/api` e sem barra final, é o `API_ORIGIN` da Vercel).
 4. SPA na Vercel: o projeto **já existe** em
    [securo-personal-finance](https://vercel.com/gscunha-22-s-project/securo-personal-finance)
-   (`frontend/` como Root Directory, auto-deploy off). Não criar um segundo.
-   Não git-deployar `cursor/land-architecture-ci-0b4a`. Depois do `/api/ready`
-   público nesta branch, `API_ORIGIN` (HTTPS da API, sem `/api`) +
-   `FRONTEND_URL` e um deploy **manual**. `TRUSTED_PROXY_HOPS=1`.
+   (preferir Root Directory `frontend/`; se ficar a raiz do repo, o
+   `vercel.ts` da raiz usa preset Other e constrói `frontend/`). Auto-deploy
+   off. Não criar um segundo. Não git-deployar
+   `cursor/land-architecture-ci-0b4a`. Depois do `/api/ready` público nesta
+   branch, `API_ORIGIN` (HTTPS da API, sem `/api`) + `FRONTEND_URL` e um
+   deploy **manual**. `TRUSTED_PROXY_HOPS=1`.
 5. Domínio custom + OAuth redirects + `PRIVATE_INSTANCE=true`.
 6. Branch Neon + preview Vercel por PR (opcional, depois do happy path).
 
