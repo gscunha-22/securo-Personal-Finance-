@@ -7,15 +7,74 @@ from app.core.database import (
     alembic_database_url,
     async_connect_args,
     neon_direct_url,
+    normalize_database_url,
     uses_neon_host,
     uses_neon_pooler,
 )
 
 POOLED = "postgresql+asyncpg://u:p@ep-abc-pooler.us-east-2.aws.neon.tech/neondb"
 DIRECT = "postgresql+asyncpg://u:p@ep-abc.us-east-2.aws.neon.tech/neondb"
+CONNECT_POOLED = (
+    "postgresql://u:p@ep-abc-pooler.c-7.us-east-2.aws.neon.tech/securo"
+    "?sslmode=require&channel_binding=require"
+)
+CONNECT_DIRECT = (
+    "postgresql://u:p@ep-abc.c-7.us-east-2.aws.neon.tech/securo"
+    "?sslmode=require&channel_binding=require"
+)
 LOCAL = "postgresql+asyncpg://postgres:postgres@localhost:5432/securo"
 SQLITE = "sqlite+aiosqlite:///:memory:"
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_normalizes_neon_connect_paste():
+    pooled = normalize_database_url(CONNECT_POOLED)
+    parsed = make_url(pooled)
+    assert parsed.drivername == "postgresql+asyncpg"
+    assert parsed.database == "securo"
+    assert parsed.password == "p"
+    assert "channel_binding" not in parsed.query
+    assert "sslmode" not in parsed.query
+    assert uses_neon_pooler(pooled)
+    args = async_connect_args(pooled)
+    assert args["ssl"] is True
+    assert args["statement_cache_size"] == 0
+
+    direct = normalize_database_url(CONNECT_DIRECT)
+    assert make_url(direct).drivername == "postgresql+asyncpg"
+    assert not uses_neon_pooler(direct)
+    assert async_connect_args(direct) == {"ssl": True}
+    assert normalize_database_url(SQLITE) == SQLITE
+    assert normalize_database_url(POOLED) == POOLED
+
+
+def test_alembic_url_normalizes_connect_paste_and_strips_pooler(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL_DIRECT", raising=False)
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    settings = Settings(
+        database_url=CONNECT_POOLED,
+        database_url_direct="",
+        _env_file=None,
+        _secrets_dir=str(secrets),
+    )
+    derived = alembic_database_url(settings)
+    parsed = make_url(derived)
+    assert parsed.drivername == "postgresql+asyncpg"
+    assert parsed.host == "ep-abc.c-7.us-east-2.aws.neon.tech"
+    assert "pooler" not in (parsed.host or "")
+    assert "channel_binding" not in parsed.query
+
+    settings = Settings(
+        database_url=CONNECT_POOLED,
+        database_url_direct=CONNECT_DIRECT,
+        _env_file=None,
+        _secrets_dir=str(secrets),
+    )
+    explicit = alembic_database_url(settings)
+    assert make_url(explicit).host == "ep-abc.c-7.us-east-2.aws.neon.tech"
+    assert make_url(explicit).drivername == "postgresql+asyncpg"
 
 
 def test_detects_neon_pooler_and_direct_hosts():
@@ -156,6 +215,10 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     assert "nextjs" not in render.lower()
     assert "type: cron" not in render
     assert "DATABASE_URL_DIRECT" in render
+    assert "normalize_database_url" in (REPO_ROOT / "backend" / "app" / "core" / "database.py").read_text(
+        encoding="utf-8"
+    )
+    assert "channel_binding" in render
     assert "TRUSTED_PROXY_HOPS" in render
     assert render.count("STORAGE_S3_BUCKET") >= 3
     assert render.count("GOOGLE_CLIENT_ID") >= 3

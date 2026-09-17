@@ -11,11 +11,37 @@ from app.core.config import Settings, get_settings
 settings = get_settings()
 
 
+_LIBPQ_QUERY_KEYS = frozenset({"sslmode", "channel_binding", "gssencmode", "ssl"})
+
+
 def _host(database_url: str) -> str:
     try:
         return (make_url(database_url).host or "").lower()
     except ArgumentError:
         return ""
+
+
+def normalize_database_url(database_url: str) -> str:
+    """Accept a Neon Connect paste and emit an asyncpg URL.
+
+    The dashboard copies ``postgresql://…?sslmode=require&channel_binding=require``.
+    SQLAlchemy + asyncpg need the ``+asyncpg`` driver and reject libpq-only
+    query keys. SSL for ``*.neon.tech`` is applied in ``async_connect_args``.
+    """
+    if not database_url:
+        return database_url
+    try:
+        url = make_url(database_url)
+    except ArgumentError:
+        return database_url
+    driver = (url.drivername or "").lower()
+    if driver in {"postgresql", "postgres"}:
+        url = url.set(drivername="postgresql+asyncpg")
+        driver = "postgresql+asyncpg"
+    if "asyncpg" in driver:
+        query = {key: value for key, value in url.query.items() if key.lower() not in _LIBPQ_QUERY_KEYS}
+        url = url.set(query=query)
+    return url.render_as_string(hide_password=False)
 
 
 def uses_neon_host(database_url: str) -> bool:
@@ -46,10 +72,11 @@ def alembic_database_url(cfg: Settings | None = None) -> str:
     cfg = cfg or get_settings()
     direct = cfg.database_url_direct.strip()
     if direct:
-        return direct
-    if uses_neon_pooler(cfg.database_url):
-        return neon_direct_url(cfg.database_url)
-    return cfg.database_url
+        return normalize_database_url(direct)
+    url = normalize_database_url(cfg.database_url)
+    if uses_neon_pooler(url):
+        return neon_direct_url(url)
+    return url
 
 
 def async_connect_args(database_url: str) -> dict[str, Any]:
@@ -73,6 +100,7 @@ def create_engine_from_url(
     connect_args: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> AsyncEngine:
+    database_url = normalize_database_url(database_url)
     merged = {**async_connect_args(database_url), **(connect_args or {})}
     engine_kwargs: dict[str, Any] = {"echo": echo, **kwargs}
     if merged:

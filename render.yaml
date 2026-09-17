@@ -3,9 +3,12 @@
 # worker + Celery beat + Redis. Not a Next.js rewrite. Beat is a long-running
 # process, not an HTTP schedule.
 #
-# In the Render dashboard: New → Blueprint → this repo. Paste Neon pooled
-# DATABASE_URL, DATABASE_URL_DIRECT, SECRET_KEY, FRONTEND_URL (the Vercel HTTPS)
-# and S3 vault keys. Leave autoDeploy off; promote explicitly.
+# In the Render dashboard: New → Blueprint → this repo.
+# Paste the Neon Connect URI as-is (pooling ON → DATABASE_URL, pooling OFF →
+# DATABASE_URL_DIRECT). The API rewrites postgresql:// and drops
+# channel_binding/sslmode. Also paste SECRET_KEY, FRONTEND_URL (Vercel HTTPS,
+# or http://localhost:5173 until that exists) and S3 vault keys on api,
+# worker, and beat. Leave Blueprint auto-sync and autoDeploy off.
 # The public web URL (no trailing slash, no /api) is API_ORIGIN on Vercel.
 
 databases: []

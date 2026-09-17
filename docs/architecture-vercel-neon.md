@@ -121,6 +121,9 @@ produção é explícita.
 - **Dois connection strings:**
   - API e worker: pooled (`-pooler`) com SSL. Com `asyncpg`, desligar
     prepared statements no pooler ou usar o modo compatível do PgBouncer.
+    A URI copiada da modal Connect da Neon (`postgresql://…?sslmode=require&channel_binding=require`)
+    é aceite: `normalize_database_url` troca o driver para `postgresql+asyncpg`
+    e tira `channel_binding` / `sslmode`.
   - `alembic upgrade`, `pg_dump`, restore: endpoint **direto**.
 - Branch por PR de backend/preview: copiar schema+dados de homologação,
   correr migrações, apontar `DATABASE_URL` do compute de preview.
@@ -229,7 +232,7 @@ Já no tree, para o operador ligar os três planos sem reescrever o app:
 
 | Peça | Onde |
 |---|---|
-| Engine asyncpg + Neon | `create_engine_from_url` em `backend/app/core/database.py`: SSL em `*.neon.tech`, `statement_cache_size=0` no host `-pooler`, `pool_pre_ping` / `pool_recycle=300` |
+| Engine asyncpg + Neon | `create_engine_from_url` em `backend/app/core/database.py`: SSL em `*.neon.tech`, `statement_cache_size=0` no host `-pooler`, `pool_pre_ping` / `pool_recycle=300`; `normalize_database_url` aceita o paste da modal Connect |
 | Alembic no endpoint direto | `DATABASE_URL_DIRECT`; se vazio e o host for pooler, deriva o compute tirando `-pooler` |
 | Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
 | SPA Vercel | `vercel.ts` na raiz e `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js); `git.deploymentEnabled: false` até o operador promover |
