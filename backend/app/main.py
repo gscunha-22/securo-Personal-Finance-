@@ -259,7 +259,7 @@ async def readiness_check(session: AsyncSession = Depends(get_async_session)):
     try:
         from app.providers import get_storage_provider
 
-        get_storage_provider()
+        await get_storage_provider().ping()
         checks["storage"] = True
     except Exception:
         checks["storage"] = False

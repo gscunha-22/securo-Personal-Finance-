@@ -36,3 +36,7 @@ class StorageProvider(ABC):
     def get_url(self, storage_key: str) -> str | None:
         """Return a direct URL (e.g. presigned S3 URL). None for local storage."""
         return None
+
+    async def ping(self) -> None:
+        """Raise if the backend cannot serve vault reads/writes."""
+        return None

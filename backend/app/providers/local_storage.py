@@ -44,3 +44,9 @@ class LocalStorageProvider(StorageProvider):
         path = self._full_path(storage_key)
         if path.exists():
             os.remove(path)
+
+    async def ping(self) -> None:
+        path = self._base_path()
+        path.mkdir(parents=True, exist_ok=True)
+        if not path.is_dir():
+            raise NotImplementedError("Local storage path is not a directory")

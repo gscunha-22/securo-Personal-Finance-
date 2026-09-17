@@ -33,3 +33,19 @@ async def test_ready_check_degraded_returns_503(client: AsyncClient):
     assert body["checks"]["database"] is True
     assert body["checks"]["redis"] is False
     assert body["checks"]["storage"] is True
+
+
+@pytest.mark.asyncio
+async def test_ready_check_storage_ping_failure_returns_503(client: AsyncClient):
+    class BoomStorage:
+        async def ping(self):
+            raise ConnectionError("s3 down")
+
+    with patch("app.providers.get_storage_provider", return_value=BoomStorage()):
+        response = await client.get("/api/ready")
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "degraded"
+    assert body["checks"]["storage"] is False
+    assert body["checks"]["database"] is True
+    assert body["checks"]["redis"] is True

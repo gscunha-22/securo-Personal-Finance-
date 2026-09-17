@@ -1,8 +1,9 @@
 from datetime import date
 from typing import Optional
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import patch
+from pydantic import SecretStr
 
 from app.providers import (
     register_provider,
@@ -163,3 +164,41 @@ class TestOAuthRedirectDefaults:
         with patch("app.core.config.get_settings", return_value=settings), \
              patch("app.providers.enable_banking.get_settings", return_value=settings):
             assert EnableBankingProvider().redirect_uri == "https://registered.example.com/cb"
+
+
+@pytest.mark.asyncio
+async def test_s3_ping_lists_bucket_without_uploading():
+    from app.providers.s3_storage import S3StorageProvider
+
+    settings = MagicMock()
+    settings.storage_s3_bucket = "securo-vault"
+    settings.storage_s3_endpoint_url = "https://s3.example"
+    settings.storage_s3_access_key = SecretStr("AKIATEST")
+    settings.storage_s3_secret_key = SecretStr("secret")
+    settings.storage_s3_region = "us-east-2"
+
+    class FakeResp:
+        def raise_for_status(self):
+            return None
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, headers=None):
+            assert url.startswith("https://s3.example/securo-vault?")
+            assert "list-type=2" in url
+            assert "Signature=" in (headers or {})["Authorization"]
+            return FakeResp()
+
+    with (
+        patch("app.providers.s3_storage.get_settings", return_value=settings),
+        patch("app.providers.s3_storage.httpx.AsyncClient", FakeClient),
+    ):
+        await S3StorageProvider().ping()

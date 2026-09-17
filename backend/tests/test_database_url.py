@@ -239,6 +239,11 @@ def test_sigv4_headers_include_signed_headers_and_signature():
     )
     assert "X-Amz-Signature=" in url
     assert "X-Amz-Expires=" in url
+    s3_source = (REPO_ROOT / "backend" / "app" / "providers" / "s3_storage.py").read_text(
+        encoding="utf-8"
+    )
+    assert "list-type=2" in s3_source
+    assert "async def ping" in s3_source
 
 
 def test_content_disposition_encodes_quotes_and_unicode():
