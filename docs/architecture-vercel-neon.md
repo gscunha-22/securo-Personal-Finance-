@@ -185,7 +185,10 @@ original e os campos extraídos não carregam `raw_text` nem versões. O GET
 de fontes não lê `encrypted_refresh_token`. A lista de contas e o GET de uma conta não fazem JOIN
 com `bank_connections` (evita duplicar JSON `credentials`/`settings`); usam
 `account_in_workspace` + `selectinload` só com nome/logo. A lista de
-transações também não faz JOIN com `bank_connections`. O GET `/api/connections`
+transações também não faz JOIN com `bank_connections`. Count e resumo de
+P/L em `get_transactions` usam `with_only_columns` (`id` / `type` /
+`amount` / `amount_primary`) para o subquery não materializar JSONB
+`raw_data` — `defer()` só vale no load ORM, não no SQL do count. O GET `/api/connections`
 não carrega `credentials` nem as contas filhas (`BankConnectionRead` não as
 usa); sync e reconnect-token continuam a ler tokens no GET por id.
 
