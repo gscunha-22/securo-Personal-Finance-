@@ -4,6 +4,8 @@
 # process, not an HTTP schedule.
 #
 # In the Render dashboard: New → Blueprint → this repo.
+# If Dashboard → securo-api already exists and says Suspended, click Resume
+# on that service. Do not start a second Blueprint with the same names.
 # Paste the Neon Connect URI as-is (pooling ON → DATABASE_URL, pooling OFF →
 # DATABASE_URL_DIRECT). The API rewrites postgresql:// and drops
 # channel_binding/sslmode. Also paste SECRET_KEY, FRONTEND_URL (Vercel HTTPS,
