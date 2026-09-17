@@ -290,6 +290,9 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
         assert "ignoreCommand" not in source
         assert "nextjs" not in source.lower()
         assert "throw new Error" not in source
+        config_src = source.split("export const config")[1]
+        assert "value: csp" not in config_src
+        assert 'value:\n            "default-src' in config_src
     root = (REPO_ROOT / "vercel.ts").read_text(encoding="utf-8")
     assert "npm run build --prefix frontend" in root
     assert "frontend/dist" in root
@@ -331,6 +334,13 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     assert "defer(BankConnection.credentials)" in get_connections_src
     assert "selectinload(BankConnection.accounts)" not in get_connections_src
     assert "selectinload(BankConnection.institutions)" in get_connections_src
+    dash_src = (REPO_ROOT / "backend" / "app" / "services" / "dashboard_service.py").read_text(
+        encoding="utf-8"
+    )
+    dash_connectors = dash_src.split("select(SourceConnection)")[1].split("integrations =")[0]
+    assert "load_only(" in dash_connectors
+    assert "SourceConnection.last_sync_result" in dash_connectors
+    assert "encrypted_refresh_token" not in dash_connectors
 
 
 def test_normalize_api_origin_strips_trailing_api_segment():

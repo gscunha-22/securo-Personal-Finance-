@@ -196,9 +196,15 @@ monitoração da plataforma, não o livro. Não declarar Functions no `neon.ts`
 e não as usar como FastAPI/Celery. Branches `vercel-dev` e
 `preview/cursor/land-architecture-ci-0b4a` nasceram da integração Vercel —
 o projeto SPA **já existe** nalguma conta Vercel (create devolve 409) mesmo
-quando o MCP Hobby do Cursor só lista `gavi-ai-4kt2`. Abrir esse projeto
-existente (`Root Directory` = `frontend`, auto-deploy off). Não criar um
-segundo.
+quando o MCP Hobby do Cursor só lista `gavi-ai-4kt2`. O projeto já está
+na conta Hobby `gscunha-22's Project`:
+[securo-personal-finance](https://vercel.com/gscunha-22-s-project/securo-personal-finance).
+Um git-deploy de `cursor/land-architecture-ci-0b4a` falhou com
+`headers[0].headers[0]` sem `value` (CSP era identificador, não literal).
+O `vercel.ts` actual usa literais; `git.deploymentEnabled` continua
+`false`. Abrir **esse** projeto (`Root Directory` = `frontend`, auto-deploy
+off). Não criar um segundo. O dashboard do resumo não lê
+`encrypted_refresh_token` das fontes.
 
 Branches extra neste projeto (`vercel-dev`,
 `preview/cursor/land-architecture-ci-0b4a`, `backup-restore-verify`) **não**
@@ -320,11 +326,12 @@ flowchart LR
 1. Neon projeto + `pgvector` + `DATABASE_URL` (pooler) e `DATABASE_URL_DIRECT` no compute persistente; `alembic upgrade head` no boot.
 2. `STORAGE_PROVIDER=s3` no cofre; `/api/ready` verde.
 3. Redis gerenciado; worker e beat no mesmo compute que a API. No VPS: `docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d`. No cluster: Helm com `postgresql.enabled=false` e URLs Neon. Na Render: Blueprint `render.yaml` (API + worker + beat + Redis; `autoDeploy: false`; o HTTPS da web service, sem `/api` e sem barra final, é o `API_ORIGIN` da Vercel).
-4. SPA na Vercel: se o dashboard já tem `securo-personal-finance`, ligar
-   este Git repo aí (`frontend/` como Root Directory, auto-deploy off). Não
-   criar um segundo projeto. Depois do `/api/ready` público, `API_ORIGIN`
-   (HTTPS da API, sem `/api`) + `FRONTEND_URL` e um deploy **manual**.
-   `TRUSTED_PROXY_HOPS=1`.
+4. SPA na Vercel: o projeto **já existe** em
+   [securo-personal-finance](https://vercel.com/gscunha-22-s-project/securo-personal-finance)
+   (`frontend/` como Root Directory, auto-deploy off). Não criar um segundo.
+   Não git-deployar `cursor/land-architecture-ci-0b4a`. Depois do `/api/ready`
+   público nesta branch, `API_ORIGIN` (HTTPS da API, sem `/api`) +
+   `FRONTEND_URL` e um deploy **manual**. `TRUSTED_PROXY_HOPS=1`.
 5. Domínio custom + OAuth redirects + `PRIVATE_INSTANCE=true`.
 6. Branch Neon + preview Vercel por PR (opcional, depois do happy path).
 
