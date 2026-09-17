@@ -42,6 +42,7 @@ async def test_list_connections(
     assert data[0]["institution_name"] == "Banco Teste"
     assert data[0]["provider"] == "test"
     assert data[0]["status"] == "active"
+    assert "credentials" not in data[0]
 
 
 @pytest.mark.asyncio

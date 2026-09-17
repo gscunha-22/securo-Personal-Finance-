@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy import select, func, case, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, load_only, selectinload
 
 from app.core.config import get_settings
 from app.core.account_kinds import is_liability_type
@@ -186,6 +186,7 @@ async def _get_forecast_transactions(
             ),
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.account),
             selectinload(Transaction.category),
         )
@@ -682,7 +683,16 @@ async def get_summary(
         select(func.max(VaultDocument.created_at)).where(VaultDocument.workspace_id == workspace_id)
     )
     connectors = (await session.execute(
-        select(SourceConnection).where(SourceConnection.workspace_id == workspace_id)
+        select(SourceConnection)
+        .where(SourceConnection.workspace_id == workspace_id)
+        .options(
+            load_only(
+                SourceConnection.provider,
+                SourceConnection.status,
+                SourceConnection.last_sync_at,
+                SourceConnection.last_sync_result,
+            )
+        )
     )).scalars().all()
     integrations = [
         {

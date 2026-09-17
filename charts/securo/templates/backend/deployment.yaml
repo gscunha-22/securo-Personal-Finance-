@@ -26,12 +26,8 @@ spec:
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           command:
-            - uvicorn
-            - app.main:app
-            - --host
-            - 0.0.0.0
-            - --port
-            - "8000"
+            - sh
+            - /app/scripts/start-api.sh
           ports:
             - name: http
               containerPort: 8000
@@ -40,13 +36,13 @@ spec:
             httpGet:
               path: /api/health
               port: 8000
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 20
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /api/ready
               port: 8000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 20
             periodSeconds: 10
           envFrom:
             - configMapRef:

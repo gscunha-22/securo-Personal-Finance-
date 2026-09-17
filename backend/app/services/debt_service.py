@@ -6,7 +6,6 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
 from app.models.debt import Debt, DebtCashPlan, DebtInstallment, DebtOffer, DebtPayment
@@ -224,13 +223,21 @@ def _snapshot_cash(plan: DebtCashPlan | None) -> engine.CashSnapshot:
     )
 
 
-async def list_debts(session: AsyncSession, workspace_id: uuid.UUID) -> list[Debt]:
-    result = await session.execute(
+async def list_debts(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[Debt]:
+    query = (
         select(Debt)
         .where(Debt.workspace_id == workspace_id)
-        .options(selectinload(Debt.installments), selectinload(Debt.payments), selectinload(Debt.offers))
         .order_by(Debt.created_at.desc())
     )
+    if limit is not None:
+        query = query.offset(offset).limit(limit)
+    result = await session.execute(query)
     return list(result.scalars().all())
 
 

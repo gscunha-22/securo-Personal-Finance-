@@ -6,12 +6,11 @@ from typing import Optional, cast
 
 from sqlalchemy import CursorResult, delete, select, func, or_, not_, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from app.models.transaction import Transaction
 from app.models.transaction_attachment import TransactionAttachment
 from app.models.account import Account
-from app.models.bank_connection import BankConnection
 from app.models.category import Category
 from app.models.group import Group, GroupMember
 from app.models.payee import Payee
@@ -198,10 +197,10 @@ async def get_transactions(
     base_query = (
         select(Transaction)
         .outerjoin(Account)
-        .outerjoin(BankConnection)
         .outerjoin(Payee, Transaction.payee_id == Payee.id)
         .outerjoin(Category, Transaction.category_id == Category.id)
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.account),
             selectinload(Transaction.payee_entity),
@@ -428,7 +427,14 @@ async def get_transactions(
         base_query = base_query.where(or_(*clauses))
 
     # Get total count
-    count_query = select(func.count()).select_from(base_query.subquery())
+    # Subquery of the full entity would SELECT raw_data (JSONB) for every
+    # matching row even though defer() only affects ORM loads. Count and
+    # summary only need id / type / amounts.
+    count_query = select(func.count()).select_from(
+        base_query.with_only_columns(Transaction.id, maintain_column_froms=True)
+        .order_by(None)
+        .subquery()
+    )
     total = await session.scalar(count_query)
 
     # Filtered summary (issue #185): income / expense / net across ALL
@@ -444,7 +450,17 @@ async def get_transactions(
         # transfers, `treat_as_transfer` categories (transfers, investments,
         # custom) and ignored items are kept OUT of income/expense.
         pnl_filter = counts_as_pnl()
-        pnl_subq = base_query.where(pnl_filter).subquery()
+        pnl_subq = (
+            base_query.where(pnl_filter)
+            .with_only_columns(
+                Transaction.type,
+                Transaction.amount,
+                Transaction.amount_primary,
+                maintain_column_froms=True,
+            )
+            .order_by(None)
+            .subquery()
+        )
         amount_norm = func.coalesce(
             pnl_subq.c.amount_primary, pnl_subq.c.amount
         )
@@ -466,7 +482,16 @@ async def get_transactions(
         # the same rows — the complement of `counts_as_pnl()`. Surfaces
         # transfer-like movement (e.g. how much was moved/invested) without
         # distorting income/expense/net.
-        excl_subq = base_query.where(not_(pnl_filter)).subquery()
+        excl_subq = (
+            base_query.where(not_(pnl_filter))
+            .with_only_columns(
+                Transaction.amount,
+                Transaction.amount_primary,
+                maintain_column_froms=True,
+            )
+            .order_by(None)
+            .subquery()
+        )
         excl_amount_norm = func.coalesce(
             excl_subq.c.amount_primary, excl_subq.c.amount
         )
@@ -684,6 +709,7 @@ async def get_transaction(
             Transaction.workspace_id == workspace_id,
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.payee_entity),
             selectinload(Transaction.splits),
@@ -1007,6 +1033,7 @@ async def get_transfer_candidates(
             Transaction.date <= to_date,
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.account),
             selectinload(Transaction.payee_entity),
@@ -1077,6 +1104,7 @@ async def get_transfer_pair(
             Transaction.id != anchor.id,
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.category),
             selectinload(Transaction.account),
             selectinload(Transaction.payee_entity),

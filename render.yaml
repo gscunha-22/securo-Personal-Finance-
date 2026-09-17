@@ -3,9 +3,21 @@
 # worker + Celery beat + Redis. Not a Next.js rewrite. Beat is a long-running
 # process, not an HTTP schedule.
 #
-# In the Render dashboard: New → Blueprint → this repo. Paste Neon pooled
-# DATABASE_URL, DATABASE_URL_DIRECT, SECRET_KEY, FRONTEND_URL (the Vercel HTTPS)
-# and S3 vault keys. Leave autoDeploy off; promote explicitly.
+# In the Render dashboard: New → Blueprint → this repo.
+# If these names already exist and say Suspended, Resume ALL of them.
+# Do not start a second Blueprint with the same names:
+#   1. securo-redis
+#   2. securo-api
+#   3. securo-worker
+#   4. securo-beat
+# Resume wakes the last image; if that image predates Neon Connect URI
+# rewriting and /api/ready 503, Manual Deploy this branch on api, worker,
+# and beat (autoDeploy stays off). /api/ready stays 503 if redis is still
+# Suspended. Paste the Neon Connect URI as-is (pooling ON → DATABASE_URL,
+# pooling OFF → DATABASE_URL_DIRECT). The API rewrites postgresql:// and drops
+# channel_binding/sslmode. Also paste SECRET_KEY, FRONTEND_URL (Vercel HTTPS,
+# or http://localhost:5173 until that exists) and S3 vault keys on api,
+# worker, and beat. Leave Blueprint auto-sync and autoDeploy off.
 # The public web URL (no trailing slash, no /api) is API_ORIGIN on Vercel.
 
 databases: []
@@ -20,7 +32,8 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    healthCheckPath: /api/health
+    dockerCommand: sh /app/scripts/start-api.sh
+    healthCheckPath: /api/ready
     autoDeploy: false
     region: ohio
     envVars:
@@ -67,7 +80,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: celery -A app.worker worker --loglevel=info --concurrency=2
+    dockerCommand: sh /app/scripts/start-worker.sh worker --loglevel=info --concurrency=2
     autoDeploy: false
     region: ohio
     envVars:
@@ -112,7 +125,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: celery -A app.worker beat --loglevel=info
+    dockerCommand: sh /app/scripts/start-worker.sh beat --loglevel=info
     autoDeploy: false
     region: ohio
     envVars:
@@ -127,7 +140,27 @@ services:
         sync: false
       - key: SECRET_KEY
         sync: false
+      - key: FRONTEND_URL
+        sync: false
       - key: STORAGE_PROVIDER
         value: s3
+      - key: STORAGE_S3_BUCKET
+        sync: false
+      - key: STORAGE_S3_REGION
+        value: us-east-2
+      - key: STORAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: STORAGE_S3_ACCESS_KEY
+        sync: false
+      - key: STORAGE_S3_SECRET_KEY
+        sync: false
       - key: PRIVATE_INSTANCE
         value: "true"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false

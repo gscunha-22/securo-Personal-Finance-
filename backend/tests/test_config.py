@@ -161,3 +161,26 @@ def test_local_auth_disabled_requires_complete_oidc_configuration(
             local_auth_enabled=False,
             _secrets_dir=str(secrets),
         )
+
+
+def test_trusted_proxy_hops_defaults_to_zero_locally(secrets: Path, monkeypatch):
+    monkeypatch.delenv("TRUSTED_PROXY_HOPS", raising=False)
+    monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.delenv("FLY_APP_NAME", raising=False)
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
+    settings = Settings(_env_file=None, _secrets_dir=str(secrets))
+    assert settings.trusted_proxy_hops == 0
+
+
+def test_trusted_proxy_hops_defaults_to_one_on_render(secrets: Path, monkeypatch):
+    monkeypatch.delenv("TRUSTED_PROXY_HOPS", raising=False)
+    monkeypatch.setenv("RENDER", "true")
+    settings = Settings(_env_file=None, _secrets_dir=str(secrets))
+    assert settings.trusted_proxy_hops == 1
+
+
+def test_trusted_proxy_hops_env_zero_wins_on_render(secrets: Path, monkeypatch):
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "0")
+    settings = Settings(_env_file=None, _secrets_dir=str(secrets))
+    assert settings.trusted_proxy_hops == 0

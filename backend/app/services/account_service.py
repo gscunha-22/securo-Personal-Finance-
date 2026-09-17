@@ -30,6 +30,20 @@ def get_account_name(account: Account) -> str:
     return account.display_name or account.name
 
 
+def _connection_display_load():
+    """Load institution labels without JSON credentials or settings."""
+    return (
+        selectinload(Account.connection)
+        .load_only(
+            BankConnection.display_name,
+            BankConnection.institution_name,
+            BankConnection.logo_url,
+            BankConnection.provider,
+        )
+        .selectinload(BankConnection.institutions)
+    )
+
+
 def _simplefin_to_internal_balance(provider: str, account_type: str, balance: Decimal) -> Decimal:
     """Normalize a SimpleFIN balance to Securo's positive-for-debt convention.
 
@@ -108,32 +122,27 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
         .subquery()
     )
 
-    # Build the query
+    # Accounts and connections are loaded separately so JSON credentials /
+    # settings are not duplicated across every child account row.
     query = (
         select(
             Account,
-            BankConnection,
             func.coalesce(balance_sq.c.current_balance, 0).label("current_balance"),
             func.coalesce(prev_balance_sq.c.previous_balance, 0).label("previous_balance"),
         )
-        .outerjoin(BankConnection)
+        .options(_connection_display_load())
         .outerjoin(balance_sq, Account.id == balance_sq.c.account_id)
         .outerjoin(prev_balance_sq, Account.id == prev_balance_sq.c.account_id)
-        .where(
-            or_(
-                Account.workspace_id == workspace_id,
-                BankConnection.workspace_id == workspace_id,
-            )
-        )
+        .where(account_in_workspace(workspace_id))
     )
     if not include_closed:
         query = query.where(Account.is_closed == False)
     query = query.order_by(Account.name)
     result = await session.execute(query)
     return [
-            serialize_account(acc, current_balance, previous_balance, connection)
-            for acc, connection, current_balance, previous_balance in result.all()
-        ]
+        serialize_account(acc, current_balance, previous_balance, acc.connection)
+        for acc, current_balance, previous_balance in result.unique().all()
+    ]
 
 
 def _institution(
@@ -241,7 +250,7 @@ async def get_credit_card_bills(
 async def get_account(session: AsyncSession, account_id: uuid.UUID, workspace_id: uuid.UUID) -> Optional[Account]:
     result = await session.execute(
         select(Account)
-        .options(selectinload(Account.connection))
+        .options(_connection_display_load())
         .where(
             Account.id == account_id,
             account_in_workspace(workspace_id),

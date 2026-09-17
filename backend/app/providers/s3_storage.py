@@ -188,6 +188,18 @@ class S3StorageProvider(StorageProvider):
             if response.status_code not in {204, 404}:
                 response.raise_for_status()
 
+    def _bucket_url(self) -> str:
+        settings = self._settings()
+        if settings.storage_s3_endpoint_url:
+            return f"{settings.storage_s3_endpoint_url.rstrip('/')}/{settings.storage_s3_bucket}"
+        return self._host(settings)
+
+    async def ping(self) -> None:
+        url = f"{self._bucket_url()}?list-type=2&max-keys=0"
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url, headers=self._sign("GET", url, {}, b""))
+            response.raise_for_status()
+
     def get_url(self, storage_key: str) -> str | None:
         """Temporary signed GET URL. Never a permanent public path."""
         access, secret, region = self._credentials()

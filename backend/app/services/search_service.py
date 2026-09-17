@@ -16,6 +16,7 @@ from typing import Any, Literal, Optional
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from app.models.account import Account
 from app.models.asset import Asset
@@ -120,6 +121,7 @@ async def search_all(
                 Transaction.notes.ilike(pattern, escape="\\"),
             ),
         )
+        .options(defer(Transaction.raw_data))
         .order_by(Transaction.date.desc(), Transaction.created_at.desc())
         .limit(per_type_limit)
     )

@@ -2,7 +2,7 @@ from functools import lru_cache
 from os import getenv
 from pathlib import Path
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Use the same environment variable that systemd uses: https://systemd.io/CREDENTIALS/
@@ -10,6 +10,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 CREDENTIALS_DIRECTORY: list[Path] = [
     Path(p) for p in getenv("CREDENTIALS_DIRECTORY", "/run/secrets").split(":") if p
 ]
+
+
+def default_trusted_proxy_hops() -> int:
+    """Render/Fly/Railway terminate TLS in front of uvicorn.
+
+    Resume of an older Render service may lack TRUSTED_PROXY_HOPS in the
+    dashboard. Without a hop count, cookies ignore X-Forwarded-Proto while
+    FRONTEND_URL is still localhost during the Vercel handoff.
+    """
+    if getenv("RENDER") or getenv("FLY_APP_NAME") or getenv("RAILWAY_ENVIRONMENT"):
+        return 1
+    return 0
 
 
 class Settings(BaseSettings):
@@ -129,15 +141,13 @@ class Settings(BaseSettings):
     # Celery
     redis_url: str = "redis://localhost:6379/0"
 
-    # Reverse-proxy trust for client-IP-based rate limiting. 0 (default) means
-    # request.client.host is used as-is, which is only correct when nothing
-    # sits between the client and this service. In the shipped docker-compose
-    # topology the backend is reached through the bundled nginx frontend, so
-    # request.client.host is always nginx's container address. Set this to the
-    # number of trusted reverse proxies in front of the backend (usually 1) to
-    # derive the client IP from X-Forwarded-For instead, trusting only that
-    # many hops from the right; a chain shorter than expected is not trusted.
-    trusted_proxy_hops: int = 0
+    # Reverse-proxy trust for client-IP-based rate limiting. 0 (default on
+    # a laptop) means request.client.host is used as-is. Render/Fly/Railway
+    # default to 1 when TRUSTED_PROXY_HOPS is unset so Resume of an older
+    # service still honors X-Forwarded-Proto behind the Vercel rewrite.
+    # In docker-compose the backend is reached through nginx; set this to
+    # the number of trusted reverse proxies (usually 1).
+    trusted_proxy_hops: int = Field(default_factory=default_trusted_proxy_hops)
 
     # Logo size for market-priced asset icons. The logo URL is built from
     # the company website we get from the market-price provider; no API
@@ -152,6 +162,13 @@ class Settings(BaseSettings):
     # Set TESOURO_DIRETO_ENABLED=false to fully disable (e.g. to avoid the
     # external dependency on the Brazilian government endpoint).
     tesouro_direto_enabled: bool = True
+
+    @field_validator("frontend_url")
+    @classmethod
+    def normalize_frontend_url(cls, value: str) -> str:
+        # Browser Origin has no trailing slash. A pasted Vercel URL with /
+        # would miss CORS allow_origins and break cookie/OAuth redirects.
+        return value.strip().rstrip("/")
 
     @property
     def oidc_login_available(self) -> bool:

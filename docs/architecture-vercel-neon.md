@@ -121,6 +121,9 @@ produção é explícita.
 - **Dois connection strings:**
   - API e worker: pooled (`-pooler`) com SSL. Com `asyncpg`, desligar
     prepared statements no pooler ou usar o modo compatível do PgBouncer.
+    A URI copiada da modal Connect da Neon (`postgresql://…?sslmode=require&channel_binding=require`)
+    é aceite: `normalize_database_url` troca o driver para `postgresql+asyncpg`
+    e tira `channel_binding` / `sslmode`.
   - `alembic upgrade`, `pg_dump`, restore: endpoint **direto**.
 - Branch por PR de backend/preview: copiar schema+dados de homologação,
   correr migrações, apontar `DATABASE_URL` do compute de preview.
@@ -165,16 +168,61 @@ Os projetos `connector-command-center` e `kimi-memory` **não** são desta
 aplicação; não reutilizar as strings deles.
 
 Não usar Neon Functions como substituto do FastAPI neste ciclo: o app é
-um processo ASGI com worker lado a lado, não um handler isolado. Functions
-ficam como opção futura só para um sidecar de longa duração (SSE/MCP),
-não para o livro.
+um processo ASGI com worker lado a lado, não um handler isolado. Confirmado
+neste projeto (`rough-dream-93584716`, `us-east-2`): `list_functions` na
+branch `main` devolve lista vazia; custom domains de Functions não estão
+disponíveis. Functions ficam de fora do `neon.ts` de propósito — sidecar
+SSE/MCP só se um dia o FastAPI persistente não chegar, nunca para o livro.
+
+`neon.ts` na raiz só barateia **branches filhas novas** (TTL 7d, scale-to-zero
+em 5m, teto 1 CU). Não altera o compute de `main`. Não correr
+`neon config apply` contra produção.
+
+`pg_stat_statements` está ligado em `securo` para medir egress. As listas
+de documentos, candidatos, jobs, auditoria, fontes e dívidas selecionam só
+as colunas da resposta e têm `limit`/`offset` (teto 200/500). O download do
+original e os campos extraídos não carregam `raw_text` nem versões. O GET
+de fontes não lê `encrypted_refresh_token`. A lista de contas e o GET de uma conta não fazem JOIN
+com `bank_connections` (evita duplicar JSON `credentials`/`settings`); usam
+`account_in_workspace` + `selectinload` só com nome/logo. A lista de
+transações também não faz JOIN com `bank_connections`. Count e resumo de
+P/L em `get_transactions` usam `with_only_columns` (`id` / `type` /
+`amount` / `amount_primary`) para o subquery não materializar JSONB
+`raw_data` — `defer()` só vale no load ORM, não no SQL do count. O GET `/api/connections`
+não carrega `credentials` nem as contas filhas (`BankConnectionRead` não as
+usa); sync e reconnect-token continuam a ler tokens no GET por id. O GET
+`/api/import-logs` pagina (teto 200) e faz `selectinload` só de `Account.name`
+em vez de `joinedload` da conta inteira. `get_payees` conta transações só
+deste workspace. O GET de uma transação adia `raw_data`.
+
+No Neon deste operador (`rough-dream-93584716`, `us-east-2`, ~5 MB de
+transferência no período): `list_functions` na `main` continua `[]`;
+Object Storage está ligado; as queries de topo em `pg_stat_statements` são
+monitoração da plataforma, não o livro. Não declarar Functions no `neon.ts`
+e não as usar como FastAPI/Celery. Branches `vercel-dev` e
+`preview/cursor/land-architecture-ci-0b4a` nasceram da integração Vercel —
+o projeto SPA **já existe** nalguma conta Vercel (create devolve 409) mesmo
+quando o MCP Hobby do Cursor só lista `gavi-ai-4kt2`. O projeto já está
+na conta Hobby `gscunha-22's Project`:
+[securo-personal-finance](https://vercel.com/gscunha-22-s-project/securo-personal-finance).
+Um git-deploy de `cursor/land-architecture-ci-0b4a` falhou com
+`headers[0].headers[0]` sem `value` (CSP era identificador, não literal).
+O `vercel.ts` actual usa literais; `git.deploymentEnabled` continua
+`false`. Abrir **esse** projeto (`Root Directory` = `frontend`, auto-deploy
+off). Não criar um segundo. O dashboard do resumo não lê
+`encrypted_refresh_token` das fontes.
+
+Branches extra neste projeto (`vercel-dev`,
+`preview/cursor/land-architecture-ci-0b4a`, `backup-restore-verify`) **não**
+são o destino do Render. O Blueprint usa só `main` /
+`br-autumn-brook-b5clfx9c`, database `securo`.
 
 ### Compute persistente (plano de controle)
 
 Um serviço (ou o chart Helm) que corre **juntos**:
 
 - `alembic upgrade head` no boot (já é o comando do Compose)
-- `uvicorn app.main:app`
+- `uvicorn app.main:app` (`start-api.sh` liga `--proxy-headers` quando `TRUSTED_PROXY_HOPS` ≠ 0)
 - `celery -A app.worker worker`
 - `celery -A app.worker beat`
 
@@ -193,8 +241,8 @@ imagem — não na Vercel.
 
 | Variável | Valor alvo |
 |---|---|
-| `FRONTEND_URL` | `https://<domínio-produção>` |
-| `API_ORIGIN` | Origin persistente do FastAPI, sem barra final (env da Vercel) |
+| `FRONTEND_URL` | `https://<domínio-produção>` sem barra final (CORS usa Origin do browser) |
+| `API_ORIGIN` | Origin persistente do FastAPI, sem barra final e sem `/api` (env da Vercel; `normalizeApiOrigin` também corta um `/api` colado por engano) |
 | `DATABASE_URL` | `postgresql+asyncpg://...-pooler...neon.tech/neondb?ssl=require` (API/worker) |
 | `DATABASE_URL_DIRECT` | Endpoint Neon **direto** (Alembic, `pg_dump`, restore) |
 | `REDIS_URL` | Upstash ou Redis persistente |
@@ -212,10 +260,11 @@ Já no tree, para o operador ligar os três planos sem reescrever o app:
 
 | Peça | Onde |
 |---|---|
-| Engine asyncpg + Neon | `create_engine_from_url` em `backend/app/core/database.py`: SSL em `*.neon.tech`, `statement_cache_size=0` no host `-pooler`, `pool_pre_ping` / `pool_recycle=300` |
+| Engine asyncpg + Neon | `create_engine_from_url` em `backend/app/core/database.py`: SSL em `*.neon.tech`, `statement_cache_size=0` no host `-pooler`, `pool_pre_ping` / `pool_recycle=300`; `normalize_database_url` aceita o paste da modal Connect |
 | Alembic no endpoint direto | `DATABASE_URL_DIRECT`; se vazio e o host for pooler, deriva o compute tirando `-pooler` |
 | Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
 | SPA Vercel | `vercel.ts` na raiz e `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js); `git.deploymentEnabled: false` até o operador promover |
+| Neon IaC | `neon.ts`: TTL e scale-to-zero só em branches filhas novas; **sem** `preview.functions` |
 | Helm | `secret.databaseUrlDirect` → `DATABASE_URL_DIRECT`; `config.storageProvider` / `secret.storageS3*` para o cofre S3; `config.privateInstance` e `trustedProxyHops` |
 | Compose Neon | `docker-compose.neon.yml` overlay: Postgres local desligado, `DATABASE_URL` pooled + direto, `STORAGE_PROVIDER=s3`. `docker-compose.prod.yml` constrói **este** repositório (`--build`), não puxa `ghcr.io/securo-finance`. |
 | Backup | `scripts/backup-instance.sh` / `restore-instance.sh` usam `DATABASE_URL_DIRECT` e recusam tar com `..`/symlink |
@@ -283,7 +332,14 @@ flowchart LR
 1. Neon projeto + `pgvector` + `DATABASE_URL` (pooler) e `DATABASE_URL_DIRECT` no compute persistente; `alembic upgrade head` no boot.
 2. `STORAGE_PROVIDER=s3` no cofre; `/api/ready` verde.
 3. Redis gerenciado; worker e beat no mesmo compute que a API. No VPS: `docker compose -f docker-compose.prod.yml -f docker-compose.neon.yml up -d`. No cluster: Helm com `postgresql.enabled=false` e URLs Neon. Na Render: Blueprint `render.yaml` (API + worker + beat + Redis; `autoDeploy: false`; o HTTPS da web service, sem `/api` e sem barra final, é o `API_ORIGIN` da Vercel).
-4. SPA na Vercel (`frontend/` como Root Directory, `API_ORIGIN`, `FRONTEND_URL` e CORS). `TRUSTED_PROXY_HOPS=1`.
+4. SPA na Vercel: o projeto **já existe** em
+   [securo-personal-finance](https://vercel.com/gscunha-22-s-project/securo-personal-finance)
+   (preferir Root Directory `frontend/`; se ficar a raiz do repo, o
+   `vercel.ts` da raiz usa preset Other e constrói `frontend/`). Auto-deploy
+   off. Não criar um segundo. Não git-deployar
+   `cursor/land-architecture-ci-0b4a`. Depois do `/api/ready` público nesta
+   branch, `API_ORIGIN` (HTTPS da API, sem `/api`) + `FRONTEND_URL` e um
+   deploy **manual**. `TRUSTED_PROXY_HOPS=1`.
 5. Domínio custom + OAuth redirects + `PRIVATE_INSTANCE=true`.
 6. Branch Neon + preview Vercel por PR (opcional, depois do happy path).
 

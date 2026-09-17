@@ -5,7 +5,7 @@ from typing import Literal, Optional, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from app.core.config import get_settings
 from app.models.account import Account
@@ -300,6 +300,7 @@ async def _load_actual_transactions(
             Transaction.status == "posted",
         )
         .options(
+            defer(Transaction.raw_data),
             selectinload(Transaction.account),
             selectinload(Transaction.category),
             selectinload(Transaction.payee_entity),
