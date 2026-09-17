@@ -2085,6 +2085,10 @@ export const intelligence = {
     const { data } = await api.post(`/sources/${provider}/disconnect`)
     return data
   },
+  syncSource: async (provider: string): Promise<SourceConnection> => {
+    const { data } = await api.post(`/sources/${provider}/sync`)
+    return data
+  },
   listDebts: async (): Promise<Debt[]> => {
     const { data } = await api.get('/debts')
     return data

@@ -334,6 +334,12 @@ async def retry_job(
         job.status = "queued"
         await session.commit()
         return await vault_service.process_extraction_job(session, job.id)
+    if job.job_type.startswith("sync_"):
+        job.status = "queued"
+        await session.commit()
+        from app.services import source_sync_service
+
+        return await source_sync_service.process_sync_job(session, job.id)
     raise HTTPException(status_code=400, detail="This job type cannot be retried here")
 
 
@@ -520,6 +526,11 @@ async def source_oauth_callback(
     )
     await session.commit()
     await session.refresh(row)
+    from app.services import source_sync_service
+
+    await source_sync_service.enqueue_sync(session, row)
+    await session.commit()
+    await session.refresh(row)
     return SourceRead.model_validate(row)
 
 
@@ -557,6 +568,36 @@ async def disconnect_source(
         extra={"provider": provider},
     )
     await session.commit()
+    await session.refresh(row)
+    return SourceRead.model_validate(row)
+
+
+@router.post("/api/sources/{provider}/sync", response_model=SourceRead)
+async def sync_source(
+    provider: str,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    from app.integrations.source_oauth import PROVIDERS
+    from app.services import source_sync_service
+
+    if provider not in PROVIDERS:
+        raise HTTPException(status_code=404, detail="Unknown source provider")
+    result = await session.execute(
+        select(SourceConnection).where(
+            SourceConnection.workspace_id == ctx.workspace.id,
+            SourceConnection.provider == provider,
+        )
+    )
+    row = result.scalars().first()
+    if row is None or row.status != "connected" or not row.encrypted_refresh_token:
+        raise HTTPException(status_code=409, detail="Source is not connected")
+    job = await source_sync_service.enqueue_sync(session, row)
+    await session.commit()
+    try:
+        await source_sync_service.process_sync_job(session, job.id)
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.refresh(row)
     return SourceRead.model_validate(row)
 

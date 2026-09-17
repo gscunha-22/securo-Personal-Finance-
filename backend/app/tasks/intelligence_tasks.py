@@ -25,7 +25,7 @@ async def _process_document(job_id: str) -> None:
 
 
 async def _recover_abandoned() -> None:
-    from app.services import job_service
+    from app.services import job_service, source_sync_service
     from app.services.vault_service import process_extraction_job
 
     engine, session_maker = _make_session_maker()
@@ -33,9 +33,23 @@ async def _recover_abandoned() -> None:
         async with session_maker() as session:
             await job_service.recover_abandoned(session)
             await session.commit()
-            ready = await job_service.list_ready_queued(session, job_type="extract_document")
+            ready = await job_service.list_ready_queued(session)
             for job in ready:
-                await process_extraction_job(session, job.id)
+                if job.job_type == "extract_document":
+                    await process_extraction_job(session, job.id)
+                elif job.job_type.startswith("sync_"):
+                    await source_sync_service.process_sync_job(session, job.id)
+    finally:
+        await engine.dispose()
+
+
+async def _sync_connected_sources() -> None:
+    from app.services import source_sync_service
+
+    engine, session_maker = _make_session_maker()
+    try:
+        async with session_maker() as session:
+            await source_sync_service.sync_all_connected(session)
     finally:
         await engine.dispose()
 
@@ -48,3 +62,8 @@ def process_document(job_id: str) -> None:
 @celery_app.task(name="app.tasks.intelligence_tasks.recover_abandoned_jobs")
 def recover_abandoned_jobs() -> None:
     asyncio.run(_recover_abandoned())
+
+
+@celery_app.task(name="app.tasks.intelligence_tasks.sync_connected_sources")
+def sync_connected_sources() -> None:
+    asyncio.run(_sync_connected_sources())

@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
     listSources: vi.fn(),
     connectSource: vi.fn(),
     disconnectSource: vi.fn(),
+    syncSource: vi.fn(),
   },
 }))
 
@@ -54,5 +55,23 @@ describe('SourcesPage', () => {
     ])
     renderWithProviders(<SourcesPage />, { route: '/sources' })
     expect(await screen.findByRole('button', { name: t('intelligence.sourceConnect') })).toBeEnabled()
+  })
+
+  it('offers a read-only sync once connected', async () => {
+    api.intelligence.listSources.mockResolvedValue([
+      {
+        id: '00000000-0000-0000-0000-000000000001',
+        provider: 'gmail',
+        display_name: 'Gmail',
+        status: 'connected',
+        granted_scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+        last_sync_at: null,
+        last_sync_result: 'ok',
+        last_error: null,
+      },
+    ])
+    renderWithProviders(<SourcesPage />, { route: '/sources' })
+    expect(await screen.findByRole('button', { name: t('intelligence.sourceSync') })).toBeEnabled()
+    expect(screen.getByRole('button', { name: t('intelligence.sourceDisconnect') })).toBeEnabled()
   })
 })

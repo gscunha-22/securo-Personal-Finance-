@@ -33,6 +33,21 @@ export default function SourcesPage() {
     onError: () => toast.error(t('intelligence.sourceConnectErr')),
   })
 
+  const sync = useMutation({
+    mutationFn: intelligence.syncSource,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+      queryClient.invalidateQueries({ queryKey: ['review-candidates'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      toast.success(t('intelligence.sourceSyncOk'))
+    },
+    onError: (err) => {
+      const detail = axios.isAxiosError(err) ? err.response?.data?.detail : null
+      toast.error(typeof detail === 'string' ? detail : t('intelligence.sourceSyncErr'))
+    },
+  })
+
   return (
     <div>
       <PageHeader section={t('intelligence.group')} title={t('nav.sources')} />
@@ -70,14 +85,24 @@ export default function SourcesPage() {
                 </Button>
               )}
               {canWrite && connected && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => disconnect.mutate(source.provider)}
-                  disabled={disconnect.isPending}
-                >
-                  {t('intelligence.sourceDisconnect')}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => sync.mutate(source.provider)}
+                    disabled={sync.isPending}
+                  >
+                    {t('intelligence.sourceSync')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => disconnect.mutate(source.provider)}
+                    disabled={disconnect.isPending}
+                  >
+                    {t('intelligence.sourceDisconnect')}
+                  </Button>
+                </div>
               )}
             </div>
           )

@@ -101,7 +101,10 @@ def test_grant_accepts_microsoft_short_mail_read():
 def test_sheets_requested_scope_is_readonly():
     assert requested_scopes("sheets") == (
         "https://www.googleapis.com/auth/spreadsheets.readonly",
+        "https://www.googleapis.com/auth/drive.metadata.readonly",
     )
+    assert "spreadsheets.readonly" in " ".join(requested_scopes("sheets"))
+    assert "spreadsheets" != requested_scopes("sheets")[0]
 
 
 @pytest.mark.asyncio

@@ -2729,6 +2729,9 @@
     "noDebt": "Sem dívida",
     "addInventory": "Inclua o inventário.",
     "rateUnknown": "—",
-    "perMonth": "{{n}} meses"
+    "perMonth": "{{n}} meses",
+    "sourceSync": "Sincronizar somente leitura",
+    "sourceSyncOk": "Sincronização somente leitura concluída. Nada foi lançado no livro.",
+    "sourceSyncErr": "Não foi possível sincronizar esta fonte"
   }
 }

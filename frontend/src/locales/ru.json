@@ -2741,6 +2741,9 @@
     "noDebt": "No debt",
     "addInventory": "Add the inventory.",
     "rateUnknown": "—",
-    "perMonth": "{{n}} months"
+    "perMonth": "{{n}} months",
+    "sourceSync": "Sync read-only",
+    "sourceSyncOk": "Read-only sync finished. Nothing was posted to the ledger.",
+    "sourceSyncErr": "Could not sync this source"
   }
 }

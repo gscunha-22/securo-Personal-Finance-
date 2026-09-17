@@ -234,3 +234,40 @@ async def exchange_authorization_code(provider: str, code: str) -> TokenBundle:
         external_account_id=external_id,
         display_name=display_name,
     )
+
+
+async def refresh_access_token(provider: str, refresh_token: str) -> tuple[str, datetime | None]:
+    """Mint a short-lived access token. Never logs the refresh token."""
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown source provider: {provider}")
+    if not client_configured(provider):
+        raise LookupError("Client id is not set")
+    settings = get_settings()
+    try:
+        if provider == "outlook":
+            payload = await _post_token(
+                MICROSOFT_TOKEN,
+                {
+                    "client_id": settings.microsoft_client_id,
+                    "client_secret": settings.microsoft_client_secret.get_secret_value(),
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token",
+                    "scope": " ".join(requested_scopes(provider)),
+                },
+            )
+        else:
+            payload = await _post_token(
+                GOOGLE_TOKEN,
+                {
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret.get_secret_value(),
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token",
+                },
+            )
+    except httpx.HTTPError as exc:
+        raise ValueError(sanitize_error(str(exc))) from exc
+    access = payload.get("access_token")
+    if not access:
+        raise ValueError("Token refresh did not return an access token")
+    return str(access), _expires_at(payload)

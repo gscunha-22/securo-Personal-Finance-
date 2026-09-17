@@ -70,6 +70,7 @@ async def upload_document(
     account_id: uuid.UUID | None = None,
     origin: str = "upload",
     correlation_id: str | None = None,
+    source_connection_id: uuid.UUID | None = None,
 ) -> VaultDocument:
     settings = get_settings()
     max_bytes = settings.storage_max_document_size_mb * 1024 * 1024
@@ -130,6 +131,7 @@ async def upload_document(
         workspace_id=workspace_id,
         stored_object_id=stored.id,
         account_id=account_id,
+        source_connection_id=source_connection_id,
         document_type="unknown",
         status="uploaded",
         origin=origin,
