@@ -5,6 +5,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.accounts import router as accounts_router
 from app.api.budgets import router as budgets_router
@@ -46,6 +49,7 @@ from app.api.workspaces import router as workspaces_router
 from app.api.admin import router as admin_router, check_registration_enabled
 from app.api.intelligence import router as intelligence_router
 from app.core.privacy import SecurityHeadersMiddleware
+from app.core.database import get_async_session
 from app.core.auth import fastapi_users
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.config import get_settings
@@ -237,16 +241,12 @@ async def health_check():
 
 
 @app.get("/api/ready")
-async def readiness_check():
-    from sqlalchemy import text
-
-    from app.core.database import async_session_maker
+async def readiness_check(session: AsyncSession = Depends(get_async_session)):
     from app.core.redis import get_redis
 
     checks = {"database": False, "redis": False, "storage": False}
     try:
-        async with async_session_maker() as session:
-            await session.execute(text("SELECT 1"))
+        await session.execute(text("SELECT 1"))
         checks["database"] = True
     except Exception:
         checks["database"] = False
@@ -264,4 +264,7 @@ async def readiness_check():
     except Exception:
         checks["storage"] = False
     ready = all(checks.values())
-    return {"status": "ready" if ready else "degraded", "checks": checks}
+    return JSONResponse(
+        {"status": "ready" if ready else "degraded", "checks": checks},
+        status_code=200 if ready else 503,
+    )

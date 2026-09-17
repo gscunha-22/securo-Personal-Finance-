@@ -135,6 +135,9 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     render = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
     assert "start-worker.sh worker" in render
     assert "start-worker.sh beat" in render
+    assert "start-api.sh" in render
+    assert "healthCheckPath: /api/ready" in render
+    assert "healthCheckPath: /api/health" not in render
     worker_deploy = (REPO_ROOT / "charts" / "securo" / "templates" / "worker" / "deployment.yaml").read_text(
         encoding="utf-8"
     )
@@ -147,6 +150,7 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
         encoding="utf-8"
     )
     assert "start-api.sh" in backend_deploy
+    assert "path: /api/ready" in backend_deploy
     assert "autoDeploy: false" in render
     assert "type: redis" in render
     assert "nextjs" not in render.lower()

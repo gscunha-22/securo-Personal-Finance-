@@ -20,7 +20,8 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    healthCheckPath: /api/health
+    dockerCommand: sh /app/scripts/start-api.sh
+    healthCheckPath: /api/ready
     autoDeploy: false
     region: ohio
     envVars:
