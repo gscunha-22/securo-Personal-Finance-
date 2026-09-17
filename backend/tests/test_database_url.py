@@ -304,6 +304,7 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     )
     get_accounts_src = accounts.split("async def get_accounts")[1].split("async def")[0]
     assert "account_in_workspace(workspace_id)" in get_accounts_src
+    assert "BankConnection.provider" in accounts
     assert "_connection_display_load()" in get_accounts_src
     assert "outerjoin(BankConnection)" not in get_accounts_src
     get_account_src = accounts.split("async def get_account(")[1].split("async def")[0]

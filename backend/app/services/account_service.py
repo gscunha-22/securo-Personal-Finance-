@@ -38,6 +38,7 @@ def _connection_display_load():
             BankConnection.display_name,
             BankConnection.institution_name,
             BankConnection.logo_url,
+            BankConnection.provider,
         )
         .selectinload(BankConnection.institutions)
     )
