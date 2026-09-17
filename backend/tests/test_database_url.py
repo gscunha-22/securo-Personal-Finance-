@@ -140,6 +140,10 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     )
     assert "start-worker.sh" in worker_deploy
     assert "start-worker.sh" in beat_deploy
+    backend_deploy = (REPO_ROOT / "charts" / "securo" / "templates" / "backend" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "start-api.sh" in backend_deploy
     assert "autoDeploy: false" in render
     assert "type: redis" in render
     assert "nextjs" not in render.lower()
