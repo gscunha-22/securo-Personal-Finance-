@@ -3,11 +3,14 @@ const apiOrigin = (process.env.API_ORIGIN ?? "").trim().replace(/\/+$/, "");
 const csp =
   "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'";
 
-// Always export git.deploymentEnabled so a missing API_ORIGIN cannot
-// skip the production-off latch. ignoreCommand skips the build until
-// the persistent FastAPI origin exists (no storefront without a kitchen).
+// Used when the Vercel Root Directory is the repo root (not frontend/).
+// Keep git.deploymentEnabled in this file so a missing API_ORIGIN still
+// disables production git-deploys from main.
 export const config = {
   framework: "vite",
+  installCommand: "npm ci --prefix frontend",
+  buildCommand: "npm run build --prefix frontend",
+  outputDirectory: "frontend/dist",
   git: {
     deploymentEnabled: {
       main: false,

@@ -215,14 +215,16 @@ Já no tree, para o operador ligar os três planos sem reescrever o app:
 | Engine asyncpg + Neon | `create_engine_from_url` em `backend/app/core/database.py`: SSL em `*.neon.tech`, `statement_cache_size=0` no host `-pooler`, `pool_pre_ping` / `pool_recycle=300` |
 | Alembic no endpoint direto | `DATABASE_URL_DIRECT`; se vazio e o host for pooler, deriva o compute tirando `-pooler` |
 | Worker Celery | `make_worker_session_maker()` (sync, FX, assets, ingest) |
-| SPA Vercel | `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js) |
+| SPA Vercel | `vercel.ts` na raiz e `frontend/vercel.ts`: rewrite `/api` → `API_ORIGIN`, CSP `connect-src 'self'`, framework Vite (não Next.js); `ignoreCommand` sem origin |
 | Helm | `secret.databaseUrlDirect` → `DATABASE_URL_DIRECT`; `config.storageProvider` / `secret.storageS3*` para o cofre S3; `config.privateInstance` e `trustedProxyHops` |
 | Compose Neon | `docker-compose.neon.yml` overlay: Postgres local desligado, `DATABASE_URL` pooled + direto, `STORAGE_PROVIDER=s3`. `docker-compose.prod.yml` constrói **este** repositório (`--build`), não puxa `ghcr.io/securo-finance`. |
 | Backup | `scripts/backup-instance.sh` / `restore-instance.sh` usam `DATABASE_URL_DIRECT` e recusam tar com `..`/symlink |
 | Vite local | `frontend/vite.config.ts` continua a fazer proxy de `/api` para `BACKEND_URL` |
 | OCR | `backend/Dockerfile` instala Tesseract eng+por; sem o binário o documento fica `needs_ocr` |
 
-Nada disto provisiona Neon nem publica na Vercel. Sem `API_ORIGIN` o build da Vercel falha de propósito.
+Nada disto provisiona Neon nem publica na Vercel. Sem `API_ORIGIN` o
+`ignoreCommand` salta o deploy (vitrine sem cozinha). `git.deploymentEnabled.main`
+fica `false` mesmo sem a variável, para o push a `main` não publicar produção.
 
 ## Preview e CI
 

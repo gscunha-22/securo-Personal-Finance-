@@ -158,17 +158,23 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
 
 
 def test_vercel_spa_rewrites_api_to_persistent_origin():
-    source = (REPO_ROOT / "frontend" / "vercel.ts").read_text(encoding="utf-8")
-    assert "API_ORIGIN" in source
-    assert "/api/:path*" in source
-    assert "connect-src 'self'" in source
-    assert "index.html" in source
-    assert "throw new Error" in source
-    assert 'framework: "vite"' in source
-    assert "deploymentEnabled" in source
-    assert "main: false" in source
-    assert "nextjs" not in source.lower()
+    for relative in ("frontend/vercel.ts", "vercel.ts"):
+        source = (REPO_ROOT / relative).read_text(encoding="utf-8")
+        assert "API_ORIGIN" in source
+        assert "/api/:path*" in source
+        assert "connect-src 'self'" in source
+        assert "index.html" in source
+        assert 'framework: "vite"' in source
+        assert "deploymentEnabled" in source
+        assert "main: false" in source
+        assert "ignoreCommand" in source
+        assert "nextjs" not in source.lower()
+        assert "throw new Error" not in source
+    root = (REPO_ROOT / "vercel.ts").read_text(encoding="utf-8")
+    assert "npm run build --prefix frontend" in root
+    assert "frontend/dist" in root
     assert not (REPO_ROOT / "frontend" / "vercel.json").exists()
+    assert not (REPO_ROOT / "vercel.json").exists()
 
 
 def test_sigv4_headers_include_signed_headers_and_signature():
