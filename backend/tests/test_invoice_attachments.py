@@ -57,9 +57,11 @@ async def biz_headers(auth_headers, business_ws) -> dict:
 
 
 async def make_invoice(client, headers, **overrides) -> dict:
+    due = date.today() + timedelta(days=20)
     payload = {
         "total": "1200.00",
-        "due_date": str(TODAY + timedelta(days=20)),
+        "issue_date": str(date.today()),
+        "due_date": str(due),
         "lines": [{"description": "Servico", "quantity": "1", "unit_price": "1200.00"}],
         # A draft, because issuing files our own rendered page and every
         # test below counts what a *person* put in the folder. The filed

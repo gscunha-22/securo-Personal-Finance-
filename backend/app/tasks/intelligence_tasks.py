@@ -25,13 +25,17 @@ async def _process_document(job_id: str) -> None:
 
 
 async def _recover_abandoned() -> None:
+    from app.services import job_service
+    from app.services.vault_service import process_extraction_job
+
     engine, session_maker = _make_session_maker()
     try:
         async with session_maker() as session:
-            from app.services import job_service
-
             await job_service.recover_abandoned(session)
             await session.commit()
+            ready = await job_service.list_ready_queued(session, job_type="extract_document")
+            for job in ready:
+                await process_extraction_job(session, job.id)
     finally:
         await engine.dispose()
 

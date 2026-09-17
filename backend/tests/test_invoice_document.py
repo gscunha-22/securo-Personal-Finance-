@@ -59,9 +59,11 @@ async def client_payee(session: AsyncSession, business_ws, test_user) -> Payee:
 
 
 async def make_invoice(client, headers, **overrides):
+    due = date.today() + timedelta(days=15)
     payload = {
         "total": "3000.00",
-        "due_date": str(TODAY + timedelta(days=15)),
+        "issue_date": str(date.today()),
+        "due_date": str(due),
         "lines": [{"description": "Consultoria", "quantity": "10", "unit_price": "300.00"}],
     }
     payload.update(overrides)

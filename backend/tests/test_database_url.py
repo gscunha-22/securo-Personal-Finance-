@@ -125,6 +125,12 @@ def test_helm_and_compose_expose_neon_s3_without_nextjs():
     )
     assert "make_worker_session_maker" in intelligence_tasks
     assert "async_session_maker" not in intelligence_tasks
+    assert "list_ready_queued" in intelligence_tasks
+    worker = (REPO_ROOT / "backend" / "app" / "worker.py").read_text(encoding="utf-8")
+    assert (
+        '"task": "app.tasks.intelligence_tasks.recover_abandoned_jobs",\n        "schedule": 60,'
+        in worker
+    )
 
 
 def test_vercel_spa_rewrites_api_to_persistent_origin():

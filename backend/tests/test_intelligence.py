@@ -282,6 +282,50 @@ async def test_abandoned_job_recovery(session: AsyncSession, test_workspace):
     recovered = await job_service.recover_abandoned(session)
     await session.commit()
     assert recovered == 1
+    ready = await job_service.list_ready_queued(session, job_type="extract_document")
+    assert job.id in {row.id for row in ready}
+
+
+@pytest.mark.asyncio
+async def test_queued_extract_is_due_only_when_retry_time_arrives(
+    session: AsyncSession, test_workspace
+):
+    import uuid as uuid_lib
+
+    from app.models.processing_job import ProcessingJob
+    from app.services import job_service
+
+    now = datetime.now(timezone.utc)
+    due = ProcessingJob(
+        workspace_id=test_workspace.id,
+        job_type="extract_document",
+        status="queued",
+        payload={"document_id": str(uuid_lib.uuid4())},
+        idempotency_key="due-extract",
+        next_retry_at=now - timedelta(seconds=5),
+    )
+    later = ProcessingJob(
+        workspace_id=test_workspace.id,
+        job_type="extract_document",
+        status="queued",
+        payload={"document_id": str(uuid_lib.uuid4())},
+        idempotency_key="later-extract",
+        next_retry_at=now + timedelta(hours=1),
+    )
+    other = ProcessingJob(
+        workspace_id=test_workspace.id,
+        job_type="sync_gmail",
+        status="queued",
+        payload={},
+        idempotency_key="gmail-queued",
+    )
+    session.add_all([due, later, other])
+    await session.commit()
+    ready = await job_service.list_ready_queued(session, job_type="extract_document")
+    ids = {row.id for row in ready}
+    assert due.id in ids
+    assert later.id not in ids
+    assert other.id not in ids
 
 
 def test_detect_mime_uses_bytes_not_name():
