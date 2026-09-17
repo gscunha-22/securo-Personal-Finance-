@@ -330,6 +330,8 @@ def test_vercel_spa_rewrites_api_to_persistent_origin():
     get_tx_src = txn.split("async def get_transactions")[1].split("async def")[0]
     assert "outerjoin(BankConnection)" not in get_tx_src
     assert "defer(Transaction.raw_data)" in get_tx_src
+    assert "with_only_columns(Transaction.id" in get_tx_src
+    assert "maintain_column_froms=True" in get_tx_src
     connections_src = (REPO_ROOT / "backend" / "app" / "services" / "connection_service.py").read_text(
         encoding="utf-8"
     )
