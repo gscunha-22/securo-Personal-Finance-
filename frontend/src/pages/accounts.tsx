@@ -271,6 +271,7 @@ export default function AccountsPage() {
                           <p className="text-xs text-muted-foreground">
                             {t(cfg.label)}
                             {accountMask && <> · <span className="tabular-nums">{accountMask}</span></>}
+                            {acc.shared_balance_group && <> · <span>{t('accounts.sharedCreditBalance')}</span></>}
                             {dueText && <> · <span className={dueClass}>{dueText}</span></>}
                           </p>
                         </div>
@@ -418,6 +419,7 @@ export default function AccountsPage() {
                                   <p className="text-xs text-muted-foreground">
                                     {t(cfg.label)}
                                     {accountMask && <> · <span className="tabular-nums">{accountMask}</span></>}
+                                    {acc.shared_balance_group && <> · <span>{t('accounts.sharedCreditBalance')}</span></>}
                                     {dueText && <> · <span className={dueClass}>{dueText}</span></>}
                                   </p>
                                 </div>
