@@ -278,7 +278,12 @@ async def readiness_check(session: AsyncSession = Depends(get_async_session)):
         await get_storage_provider().ping()
         checks["storage"] = True
     except Exception as exc:
-        logger.warning("Storage readiness check failed: %s", type(exc).__name__)
+        status_code = getattr(getattr(exc, "response", None), "status_code", None)
+        logger.warning(
+            "Storage readiness check failed: %s%s",
+            type(exc).__name__,
+            f" ({status_code})" if status_code else "",
+        )
         checks["storage"] = False
     ready = all(checks.values())
     body: dict[str, object] = {
