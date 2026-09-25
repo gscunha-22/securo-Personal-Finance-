@@ -16,10 +16,22 @@ libpq_url() {
   printf '%s' "$raw"
 }
 
+uses_neon_pooler() {
+  [[ "${1-}" == *-pooler.*.neon.tech* ]]
+}
+
+neon_direct_url() {
+  local raw="${1-}"
+  printf '%s' "${raw/-pooler./.}"
+}
+
 dump_postgres() {
   local url="${DATABASE_URL_DIRECT:-}"
   if [ -z "$url" ]; then
     url="${DATABASE_URL:-}"
+    if uses_neon_pooler "$url"; then
+      url="$(neon_direct_url "$url")"
+    fi
   fi
   if [ -n "$url" ] && [[ "$url" == *neon.tech* || -n "${DATABASE_URL_DIRECT:-}" ]]; then
     echo "Dumping via libpq URL (direct/Neon)."
