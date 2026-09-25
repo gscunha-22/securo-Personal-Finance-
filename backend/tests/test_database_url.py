@@ -1,5 +1,8 @@
+import os
+import subprocess
 from pathlib import Path
 
+import pytest
 from sqlalchemy.engine.url import make_url
 
 from app.core.config import Settings
@@ -150,6 +153,57 @@ def test_alembic_url_keeps_local_postgres(tmp_path, monkeypatch):
         _secrets_dir=str(secrets),
     )
     assert alembic_database_url(settings) == LOCAL
+
+
+@pytest.mark.skipif(os.name == "nt", reason="backup script requires a POSIX shell")
+def test_backup_script_derives_direct_url_for_neon_pooler(tmp_path):
+    calls = tmp_path / "pg_dump_calls.txt"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    pg_dump = bin_dir / "pg_dump"
+    docker = bin_dir / "docker"
+    pg_dump.write_text(
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' \"$1\" >> \"$PG_DUMP_CALLS\"\n"
+        "printf 'ok'\n",
+        encoding="utf-8",
+    )
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"compose\" ] && [ \"$2\" = \"ps\" ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    pg_dump.chmod(0o755)
+    docker.chmod(0o755)
+
+    env = os.environ.copy()
+    env["DATABASE_URL"] = (
+        "postgresql://user:password@ep-abc-pooler.us-east-2.aws.neon.tech/neondb?ssl=require"
+    )
+    env.pop("DATABASE_URL_DIRECT", None)
+    env["PATH"] = f"{bin_dir}:{env['PATH']}"
+    env["PG_DUMP_CALLS"] = str(calls)
+
+    subprocess.run(
+        [
+            "bash",
+            (REPO_ROOT / "scripts" / "backup-instance.sh").as_posix(),
+            (tmp_path / "backup").as_posix(),
+        ],
+        check=True,
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    dumped_urls = calls.read_text(encoding="utf-8").splitlines()
+    assert len(dumped_urls) == 2
+    assert all("-pooler" not in url for url in dumped_urls)
+    assert all("ep-abc.us-east-2.aws.neon.tech" in url for url in dumped_urls)
 
 
 def test_helm_and_compose_expose_neon_s3_without_nextjs():
