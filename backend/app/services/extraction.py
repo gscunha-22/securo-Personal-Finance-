@@ -268,9 +268,15 @@ def _rows_from_pdf_text(text: str) -> list[dict]:
     rows: list[dict] = []
     date_re = re.compile(r"(\d{2}[/-]\d{2}[/-]\d{4}|\d{4}-\d{2}-\d{2})")
     amount_re = re.compile(r"(-?\d{1,3}(?:[.\s]\d{3})*,\d{2}|-?\d+\.\d{2})")
+    # PDF receipts commonly put a Brazilian date and a BRL value next to one
+    # another (for example, ``01/10/2026 242,82``).  Strip the date before
+    # looking for money: otherwise the permissive thousands separator regex
+    # can join the last two date digits with the amount as ``26 242,82``.
+    currency = "BRL" if "R$" in text else "USD"
     for i, line in enumerate(text.splitlines(), start=1):
         date_match = date_re.search(line)
-        amounts = amount_re.findall(line)
+        line_without_date = date_re.sub("", line)
+        amounts = amount_re.findall(line_without_date)
         if not date_match or not amounts:
             continue
         try:
@@ -278,15 +284,14 @@ def _rows_from_pdf_text(text: str) -> list[dict]:
             amount = _as_decimal(amounts[-1])
         except ValueError:
             continue
-        desc = date_re.sub("", line)
-        desc = amount_re.sub("", desc).strip(" -|\t")
+        desc = amount_re.sub("", line_without_date).strip(" -|\t")
         if not desc:
             continue
         rows.append(
             {
                 "description": desc[:500],
                 "amount": abs(amount),
-                "currency": "USD",
+                "currency": currency,
                 "competence_date": competence,
                 "payment_date": competence,
                 "txn_type": "credit" if amount > 0 else "debit",

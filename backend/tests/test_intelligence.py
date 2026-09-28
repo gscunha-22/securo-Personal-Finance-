@@ -1,5 +1,7 @@
 from datetime import timedelta, timezone
 from datetime import datetime
+from decimal import Decimal
+from uuid import UUID
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.integrations.readonly import WriteAttemptError, assert_readonly, ingest_mock_messages
-from app.models.vault import SourceConnection
+from app.models.vault import ImportCandidate, SourceConnection
 from app.services.extraction import detect_mime, sha256_hex
 from app.services.vault_service import ai_validate_suggestion
 
@@ -164,6 +166,39 @@ async def test_approve_posts_and_retry_does_not_duplicate(
 
     audit = (await client.get("/api/audit", headers=auth_headers)).json()
     assert any(event["action"].startswith("import.") for event in audit)
+
+
+@pytest.mark.asyncio
+async def test_retry_replaces_pending_candidates_with_the_new_extraction(
+    client: AsyncClient, auth_headers, test_account, vault_dir, session: AsyncSession
+):
+    """A parser repair must replace an unreviewed proposal, never queue both."""
+    response = await client.post(
+        "/api/documents",
+        headers=auth_headers,
+        files={"file": ("statement.csv", CSV, "text/csv")},
+        data={"account_id": str(test_account.id)},
+    )
+    assert response.status_code == 201, response.text
+    candidates = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    candidate_id = UUID(candidates[0]["id"])
+    before = await session.get(ImportCandidate, candidate_id)
+    assert before is not None
+    first_extraction_id = before.extraction_id
+
+    from app.services.vault_service import extract_document
+
+    await extract_document(session, UUID(response.json()["id"]))
+    await session.commit()
+
+    session.expire_all()
+    refreshed = await session.get(ImportCandidate, candidate_id)
+    assert refreshed is not None
+    assert refreshed.status == "pending"
+    assert refreshed.selected is False
+    assert refreshed.extraction_id != first_extraction_id
+    active = (await client.get("/api/review/candidates", headers=auth_headers)).json()
+    assert {row["id"] for row in active} == {row["id"] for row in candidates}
 
 
 @pytest.mark.asyncio
@@ -380,6 +415,21 @@ def test_encrypted_pdf_is_held_for_review_instead_of_crashing(monkeypatch):
 
     monkeypatch.setattr(extraction, "PdfReader", lambda _stream: Reader())
     assert extraction.parse_pdf_text(b"%PDF-encrypted") == ""
+
+
+def test_pdf_row_does_not_merge_a_date_into_a_brl_amount():
+    """A due date next to a total must not become a five-digit credit."""
+    from app.services.extraction import _rows_from_pdf_text
+
+    rows = _rows_from_pdf_text(
+        "Vencimento Total a Pagar - R$\n"
+        "GUILHERME SILVA DA CUNHA 01/10/2026 242,82\n"
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["competence_date"].isoformat() == "2026-10-01"
+    assert rows[0]["amount"] == Decimal("242.82")
+    assert rows[0]["currency"] == "BRL"
 
 
 @pytest.mark.asyncio

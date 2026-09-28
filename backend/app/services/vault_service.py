@@ -319,7 +319,24 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
         )
     recurrence = suggest_recurrence(rows)
     duplicates = await _find_duplicates(session, document.workspace_id, document.account_id, rows)
+    # A retry is a fresh interpretation, not an additional set of rows. Keep
+    # prior human decisions immutable, but take unreviewed candidates from an
+    # earlier extraction out of the queue before the new parser replaces them.
+    # This lets a parser correction repair a pending document without asking a
+    # person to manually reject an erroneous old proposal first.
+    previous_pending = await session.scalars(
+        select(ImportCandidate).where(
+            ImportCandidate.document_id == document.id,
+            ImportCandidate.status == "pending",
+            ImportCandidate.extraction_id.is_not(extraction.id),
+        )
+    )
+    for previous in previous_pending:
+        previous.status = "superseded"
+        previous.selected = False
+    await session.flush()
     for row in rows:
+        suggestion = suggest_category(row["description"], row.get("payee"))
         key = fingerprint(
             str(document.workspace_id),
             document.stored_object.sha256,
@@ -337,8 +354,30 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
             )
         )
         if existing:
+            if existing.status == "superseded":
+                # A stable row key means this is the same proposal under a
+                # newer extraction. Restore it with the current metadata.
+                existing.extraction_id = extraction.id
+                existing.account_id = document.account_id
+                existing.selected = False
+                existing.status = "pending"
+                existing.description = row["description"][:500]
+                existing.amount = row["amount"]
+                existing.currency = row["currency"] or "USD"
+                existing.competence_date = row["competence_date"]
+                existing.payment_date = row.get("payment_date")
+                existing.txn_type = row["txn_type"]
+                existing.payee = row.get("payee")
+                existing.external_id = row.get("external_id")
+                existing.locator = row.get("locator")
+                existing.confidence = row.get("confidence") or Decimal("1.0000")
+                existing.duplicate_of_transaction_id = duplicates.get(
+                    (row["competence_date"], row["amount"], row["currency"] or "USD")
+                )
+                existing.suggested_category = suggestion["label"]
+                existing.suggestion_rationale = suggestion["rationale"]
+                existing.suggestion_confidence = suggestion["confidence"]
             continue
-        suggestion = suggest_category(row["description"], row.get("payee"))
         extra = {}
         if recurrence:
             extra["recurrence_suggestion"] = recurrence
