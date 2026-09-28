@@ -111,6 +111,11 @@ class Settings(BaseSettings):
 
     # Document vault
     storage_max_document_size_mb: int = 20
+    # Optional credentials used only by the extraction worker to open PDFs
+    # protected by institutions' predictable document-password schemes. Keep
+    # these in the deployment secret store, never in a repository .env file.
+    document_password_cpf_prefix: SecretStr = SecretStr("")
+    document_password_birth_date: SecretStr = SecretStr("")
 
     # Read-only Google / Microsoft connectors (owner must supply OAuth clients)
     google_client_id: str = ""

@@ -12,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 
 from pypdf import PdfReader
 
+from app.core.config import get_settings
 from app.services.import_service import parse_camt, parse_csv, parse_ofx, parse_qif
 
 
@@ -143,21 +144,38 @@ def classify_document(filename: str, mime: str, text_sample: str) -> str:
     return "unknown"
 
 
-def parse_pdf_text(data: bytes) -> str:
+def parse_pdf_text(data: bytes, *, passwords: tuple[str, ...] | None = None) -> str:
     """Extract PDF text that is safe to persist in PostgreSQL.
 
     PDFs can be encrypted (a normal property of bank statements) and a few
-    generators emit NUL bytes in otherwise readable text.  Neither condition
-    should make the asynchronous document queue retry forever: an encrypted
-    file stays in the vault for manual review, while readable text is stripped
-    of only the byte PostgreSQL cannot store.
+    generators emit NUL bytes in otherwise readable text.  Known document
+    passwords are tried locally and silently; a PDF that cannot be opened stays
+    in the vault for manual review rather than retrying forever. Readable text
+    is stripped of only the byte PostgreSQL cannot store.
     """
     try:
         reader = PdfReader(io.BytesIO(data))
     except Exception:
         return ""
     if reader.is_encrypted:
-        return ""
+        if passwords is None:
+            settings = get_settings()
+            passwords = tuple(
+                password
+                for password in (
+                    settings.document_password_cpf_prefix.get_secret_value(),
+                    settings.document_password_birth_date.get_secret_value(),
+                )
+                if password
+            )
+        for password in passwords:
+            try:
+                if reader.decrypt(password):
+                    break
+            except Exception:
+                continue
+        else:
+            return ""
     pages = []
     for i, page in enumerate(reader.pages):
         try:

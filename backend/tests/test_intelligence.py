@@ -417,6 +417,32 @@ def test_encrypted_pdf_is_held_for_review_instead_of_crashing(monkeypatch):
     assert extraction.parse_pdf_text(b"%PDF-encrypted") == ""
 
 
+def test_encrypted_pdf_uses_configured_password_without_exposing_it(monkeypatch):
+    import app.services.extraction as extraction
+
+    class Page:
+        def extract_text(self):
+            return "Protected statement"
+
+    class Reader:
+        is_encrypted = True
+        pages = [Page()]
+
+        def __init__(self):
+            self.attempts = []
+
+        def decrypt(self, password):
+            self.attempts.append(password)
+            return password == "test-password"
+
+    reader = Reader()
+    monkeypatch.setattr(extraction, "PdfReader", lambda _stream: reader)
+    assert extraction.parse_pdf_text(
+        b"%PDF-encrypted", passwords=("wrong-password", "test-password")
+    ) == "Protected statement"
+    assert reader.attempts == ["wrong-password", "test-password"]
+
+
 def test_pdf_row_does_not_merge_a_date_into_a_brl_amount():
     """A due date next to a total must not become a five-digit credit."""
     from app.services.extraction import _rows_from_pdf_text
