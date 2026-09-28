@@ -355,6 +355,33 @@ def test_detect_mime_uses_bytes_not_name():
     assert detect_mime(b"date,amount\n", "file.bin", "application/octet-stream") == "text/csv"
 
 
+def test_pdf_text_removes_postgres_unsafe_nul_bytes(monkeypatch):
+    """Text extraction must never put a NUL byte into a TEXT column."""
+    import app.services.extraction as extraction
+
+    class Page:
+        def extract_text(self):
+            return "Receipt\x00\nTotal 10.00"
+
+    class Reader:
+        is_encrypted = False
+        pages = [Page()]
+
+    monkeypatch.setattr(extraction, "PdfReader", lambda _stream: Reader())
+    assert extraction.parse_pdf_text(b"%PDF-test") == "Receipt\nTotal 10.00"
+
+
+def test_encrypted_pdf_is_held_for_review_instead_of_crashing(monkeypatch):
+    import app.services.extraction as extraction
+
+    class Reader:
+        is_encrypted = True
+        pages = []
+
+    monkeypatch.setattr(extraction, "PdfReader", lambda _stream: Reader())
+    assert extraction.parse_pdf_text(b"%PDF-encrypted") == ""
+
+
 @pytest.mark.asyncio
 async def test_document_file_is_not_public(client: AsyncClient, auth_headers, test_account, vault_dir):
     uploaded = await client.post(
