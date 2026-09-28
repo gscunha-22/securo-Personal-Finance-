@@ -328,7 +328,7 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID) -> Vau
         select(ImportCandidate).where(
             ImportCandidate.document_id == document.id,
             ImportCandidate.status == "pending",
-            ImportCandidate.extraction_id.is_not(extraction.id),
+            ImportCandidate.extraction_id != extraction.id,
         )
     )
     for previous in previous_pending:
