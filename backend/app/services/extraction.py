@@ -273,7 +273,9 @@ def _rows_from_pdf_text(text: str) -> list[dict]:
     # looking for money: otherwise the permissive thousands separator regex
     # can join the last two date digits with the amount as ``26 242,82``.
     currency = "BRL" if "R$" in text else "USD"
-    for i, line in enumerate(text.splitlines(), start=1):
+    lines = text.splitlines()
+    debit_markers = ("total a pagar", "valor a pagar", "amount due", "payment due")
+    for i, line in enumerate(lines, start=1):
         date_match = date_re.search(line)
         line_without_date = date_re.sub("", line)
         amounts = amount_re.findall(line_without_date)
@@ -287,6 +289,12 @@ def _rows_from_pdf_text(text: str) -> list[dict]:
         desc = amount_re.sub("", line_without_date).strip(" -|\t")
         if not desc:
             continue
+        # An unsigned number is not necessarily money received. Invoice PDFs
+        # often put the payer's name, due date and total on a line immediately
+        # below a "Total a Pagar" label. Read that small local context before
+        # choosing a direction; a leading minus remains authoritative.
+        context = " ".join(lines[max(0, i - 3) : i]).lower()
+        txn_type = "debit" if amount < 0 or any(marker in context for marker in debit_markers) else "credit"
         rows.append(
             {
                 "description": desc[:500],
@@ -294,7 +302,7 @@ def _rows_from_pdf_text(text: str) -> list[dict]:
                 "currency": currency,
                 "competence_date": competence,
                 "payment_date": competence,
-                "txn_type": "credit" if amount > 0 else "debit",
+                "txn_type": txn_type,
                 "payee": None,
                 "external_id": None,
                 "locator": f"pdf:line:{i}",

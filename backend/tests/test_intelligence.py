@@ -430,6 +430,7 @@ def test_pdf_row_does_not_merge_a_date_into_a_brl_amount():
     assert rows[0]["competence_date"].isoformat() == "2026-10-01"
     assert rows[0]["amount"] == Decimal("242.82")
     assert rows[0]["currency"] == "BRL"
+    assert rows[0]["txn_type"] == "debit"
 
 
 @pytest.mark.asyncio
