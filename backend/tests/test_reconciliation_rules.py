@@ -126,7 +126,12 @@ async def a_payment(
 
 
 async def an_invoice(
-    client: AsyncClient, headers: dict, payee: Payee, *, total: str = "3000.00"
+    client: AsyncClient,
+    headers: dict,
+    payee: Payee,
+    *,
+    total: str = "3000.00",
+    due_date: date | None = None,
 ) -> dict:
     resp = await client.post(
         "/api/invoices",
@@ -134,7 +139,7 @@ async def an_invoice(
         json={
             "total": total,
             "issue_date": str(today()),
-            "due_date": str(today()),
+            "due_date": str(due_date or today()),
             "payee_id": str(payee.id),
         },
     )
@@ -1268,7 +1273,9 @@ async def test_a_client_paying_in_two_transfers_is_reconciled_without_manual_wor
     an ordinary exact match, because by then the balance *is* 1500. The
     ambiguity only ever exists at the start.
     """
-    invoice = await an_invoice(client, biz_headers, client_payee)
+    invoice = await an_invoice(
+        client, biz_headers, client_payee, due_date=today() + timedelta(days=1)
+    )
 
     first = await a_payment(client, biz_headers, account, client_payee, amount="1500.00")
     assert first["id"]
@@ -1347,7 +1354,9 @@ async def test_a_workspace_that_wants_part_payments_linked_can_say_so(
         headers=biz_headers,
         json={"outcome": "link"},
     )
-    invoice = await an_invoice(client, biz_headers, client_payee)
+    invoice = await an_invoice(
+        client, biz_headers, client_payee, due_date=today() + timedelta(days=1)
+    )
     await a_payment(client, biz_headers, account, client_payee, amount="1500.00")
 
     partly = (
@@ -1621,7 +1630,13 @@ async def test_a_gateway_fee_can_be_allowed_for(
         json={"when": {"amount": {"match": "set", "max_invoices": 6, "percent": "2"}}},
     )
     for total in ("1000.00", "2000.00"):
-        await an_invoice(client, biz_headers, client_payee, total=total)
+        await an_invoice(
+            client,
+            biz_headers,
+            client_payee,
+            total=total,
+            due_date=today() + timedelta(days=1),
+        )
 
     await a_payment(client, biz_headers, account, client_payee, amount="2940.00")
 
@@ -2080,7 +2095,13 @@ async def test_but_accepting_it_leaves_the_invoice_short_by_the_withheld_tax(
             },
         },
     )
-    invoice = await an_invoice(client, biz_headers, client_payee, total="3000.00")
+    invoice = await an_invoice(
+        client,
+        biz_headers,
+        client_payee,
+        total="3000.00",
+        due_date=today() + timedelta(days=1),
+    )
     await a_payment(client, biz_headers, account, client_payee, amount="2955.00")
 
     queue = (

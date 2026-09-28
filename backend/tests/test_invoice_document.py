@@ -1041,6 +1041,9 @@ def test_a_line_taller_than_a_page_still_finishes():
     for one more."""
     import signal
 
+    if not hasattr(signal, "SIGALRM"):
+        pytest.skip("SIGALRM is not available on Windows")
+
     huge = ("Servico de consultoria detalhado " * 400).strip()
 
     def give_up(signum, frame):
